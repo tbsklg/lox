@@ -24,6 +24,7 @@ pub enum TokenType {
     LESS,
     GREATEREQUAL,
     GREATER,
+    SLASH,
 }
 
 impl fmt::Display for TokenType {
@@ -48,6 +49,7 @@ impl fmt::Display for TokenType {
             TokenType::LESSEQUAL => write!(f, "{}", "LESS_EQUAL"),            
             TokenType::GREATER => write!(f, "{}", "GREATER"),
             TokenType::GREATEREQUAL => write!(f, "{}", "GREATER_EQUAL"),
+            TokenType::SLASH => write!(f, "{}", "SLASH"),
         }
     }
 }
@@ -143,6 +145,16 @@ where
                 }
 
                 return Some(Ok(Token::from(TokenType::GREATER, ">")));
+            }
+            '/' => {
+                if p == Some(&'/') {
+                    while self.iterator.peek() != Some(&'\n') {
+                        self.iterator.next();
+                    }
+                    return None;
+                }
+
+                return Some(Ok(Token::from(TokenType::SLASH, "/")));
             }
             c => return Some(Err(anyhow::anyhow!("Unexpected character: {}", c))),
         };
