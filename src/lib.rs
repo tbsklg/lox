@@ -16,7 +16,7 @@ pub enum TokenType {
     MINUS,
     SEMICOLON,
     EOF,
-    BANGEQUAL,
+    EQUAL,
     EQUALEQUAL,
 }
 
@@ -33,7 +33,7 @@ impl fmt::Display for TokenType {
             TokenType::STAR => write!(f, "{}", "STAR"),
             TokenType::MINUS => write!(f, "{}", "MINUS"),
             TokenType::SEMICOLON => write!(f, "{}", "SEMICOLON"),
-            TokenType::BANGEQUAL => write!(f, "{}", "BANG_EQUAL"),
+            TokenType::EQUAL => write!(f, "{}", "EQUAL"),
             TokenType::EQUALEQUAL => write!(f, "{}", "EQUAL_EQUAL"),
             TokenType::EOF => write!(f, "{}", "EOF"),
         }
@@ -106,7 +106,7 @@ where
                     return Some(Ok(Token::from(TokenType::EQUALEQUAL, "==")))
                 }
 
-                return Some(Ok(Token::from(TokenType::BANGEQUAL, "=")))
+                return Some(Ok(Token::from(TokenType::EQUAL, "=")))
             }
             c => return Some(Err(anyhow::anyhow!("Unexpected character: {}", c))),
         };
