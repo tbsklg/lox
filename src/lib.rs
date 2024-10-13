@@ -60,16 +60,11 @@ where
     type Item = Result<Token, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(c) = self.iterator.next() {
-            let token = match c {
-                '(' => Token::from(TokenType::LeftParen, "("),
-                ')' => Token::from(TokenType::RightParen, ")"),
-                _ => Token::from(TokenType::EOF, ""),
-            };
-
-            return Some(Ok(token));
-        }
-
-        None
+        let c = self.iterator.next()?;
+        match c {
+            '(' => return Some(Ok(Token::from(TokenType::LeftParen, "("))),
+            ')' => return Some(Ok(Token::from(TokenType::RightParen, ")"))),
+            c => return Some(Err(anyhow::anyhow!("Unexpected token: {}", c))),
+        };
     }
 }

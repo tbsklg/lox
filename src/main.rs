@@ -20,19 +20,16 @@ fn main() {
                 String::new()
             });
 
-            if !file_contents.is_empty() {
-                for token in Lexer::new(file_contents.chars()) {
-                    match token {
-                        Ok(token) => println!("{}", token),
-                        Err(e) => {
-                            eprintln!("Error: {}", e);
-                            return;
-                        }
+            for token in Lexer::new(file_contents.chars()) {
+                match token {
+                    Ok(token) => println!("{}", token),
+                    Err(e) => {
+                        eprintln!("Error: {}", e);
+                        return;
                     }
                 }
-            } else {
-                println!("EOF  null"); // Placeholder, remove this line when implementing the scanner
             }
+            println!("EOF  null"); // Placeholder, remove this line when implementing the scanner
         }
         _ => {
             eprintln!("Unknown command: {}", command);
