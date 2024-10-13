@@ -18,11 +18,14 @@ pub enum TokenType {
     EOF,
     EQUAL,
     EQUALEQUAL,
+    BANG,
+    BANGEQUAL,
 }
 
 impl fmt::Display for TokenType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            TokenType::EOF => write!(f, "{}", "EOF"),
             TokenType::LeftParen => write!(f, "{}", "LEFT_PAREN"),
             TokenType::RightParen => write!(f, "{}", "RIGHT_PAREN"),
             TokenType::LeftBrace => write!(f, "{}", "LEFT_BRACE"),
@@ -35,7 +38,8 @@ impl fmt::Display for TokenType {
             TokenType::SEMICOLON => write!(f, "{}", "SEMICOLON"),
             TokenType::EQUAL => write!(f, "{}", "EQUAL"),
             TokenType::EQUALEQUAL => write!(f, "{}", "EQUAL_EQUAL"),
-            TokenType::EOF => write!(f, "{}", "EOF"),
+            TokenType::BANG => write!(f, "{}", "BANG"),
+            TokenType::BANGEQUAL => write!(f, "{}", "BANG_EQUAL"),
         }
     }
 }
@@ -103,10 +107,18 @@ where
             '=' => {
                 if p == Some(&'=') {
                     self.iterator.next();
-                    return Some(Ok(Token::from(TokenType::EQUALEQUAL, "==")))
+                    return Some(Ok(Token::from(TokenType::EQUALEQUAL, "==")));
                 }
 
-                return Some(Ok(Token::from(TokenType::EQUAL, "=")))
+                return Some(Ok(Token::from(TokenType::EQUAL, "=")));
+            }
+            '!' => {
+                if p == Some(&'=') {
+                    self.iterator.next();
+                    return Some(Ok(Token::from(TokenType::BANGEQUAL, "!=")));
+                }
+
+                return Some(Ok(Token::from(TokenType::BANG, "!")));
             }
             c => return Some(Err(anyhow::anyhow!("Unexpected character: {}", c))),
         };
