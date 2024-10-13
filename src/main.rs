@@ -26,7 +26,7 @@ fn main() {
                 match token {
                     Ok(token) => println!("{}", token),
                     Err(e) => {
-                        eprintln!("[line 1]: Error: {}", e);
+                        eprintln!("[line 1] Error: {}", e);
                         exit_code = 65;
                     }
                 }
