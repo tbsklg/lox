@@ -1,4 +1,5 @@
 use core::fmt;
+use std::iter::Peekable;
 
 use anyhow::Error;
 
@@ -15,6 +16,8 @@ pub enum TokenType {
     MINUS,
     SEMICOLON,
     EOF,
+    BANGEQUAL,
+    EQUALEQUAL,
 }
 
 impl fmt::Display for TokenType {
@@ -30,6 +33,8 @@ impl fmt::Display for TokenType {
             TokenType::STAR => write!(f, "{}", "STAR"),
             TokenType::MINUS => write!(f, "{}", "MINUS"),
             TokenType::SEMICOLON => write!(f, "{}", "SEMICOLON"),
+            TokenType::BANGEQUAL => write!(f, "{}", "BANG_EQUAL"),
+            TokenType::EQUALEQUAL => write!(f, "{}", "EQUAL_EQUAL"),
             TokenType::EOF => write!(f, "{}", "EOF"),
         }
     }
@@ -57,14 +62,20 @@ impl fmt::Display for Token {
     }
 }
 
-pub struct Lexer<I> {
-    iterator: I,
+pub struct Lexer<I>
+where
+    I: Iterator,
+{
+    iterator: Peekable<I>,
 }
 
-impl<I> Lexer<I> {
+impl<I> Lexer<I>
+where
+    I: Iterator<Item = char>,
+{
     pub fn new(input: impl IntoIterator<Item = char, IntoIter = I>) -> Self {
         Self {
-            iterator: input.into_iter(),
+            iterator: input.into_iter().peekable(),
         }
     }
 }
@@ -77,6 +88,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         let c = self.iterator.next()?;
+        let p = self.iterator.peek();
         match c {
             '(' => return Some(Ok(Token::from(TokenType::LeftParen, "("))),
             ')' => return Some(Ok(Token::from(TokenType::RightParen, ")"))),
@@ -88,6 +100,14 @@ where
             '+' => return Some(Ok(Token::from(TokenType::PLUS, "+"))),
             ';' => return Some(Ok(Token::from(TokenType::SEMICOLON, ";"))),
             '*' => return Some(Ok(Token::from(TokenType::STAR, "*"))),
+            '=' => {
+                if p == Some(&'=') {
+                    self.iterator.next();
+                    return Some(Ok(Token::from(TokenType::EQUALEQUAL, "==")))
+                }
+
+                return Some(Ok(Token::from(TokenType::BANGEQUAL, "=")))
+            }
             c => return Some(Err(anyhow::anyhow!("Unexpected character: {}", c))),
         };
     }
