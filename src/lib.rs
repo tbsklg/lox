@@ -46,7 +46,7 @@ impl fmt::Display for TokenType {
             TokenType::BANG => write!(f, "{}", "BANG"),
             TokenType::BANGEQUAL => write!(f, "{}", "BANG_EQUAL"),
             TokenType::LESS => write!(f, "{}", "LESS"),
-            TokenType::LESSEQUAL => write!(f, "{}", "LESS_EQUAL"),            
+            TokenType::LESSEQUAL => write!(f, "{}", "LESS_EQUAL"),
             TokenType::GREATER => write!(f, "{}", "GREATER"),
             TokenType::GREATEREQUAL => write!(f, "{}", "GREATER_EQUAL"),
             TokenType::SLASH => write!(f, "{}", "SLASH"),
@@ -103,6 +103,16 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         let c = self.iterator.next()?;
         let p = self.iterator.peek();
+        
+        fn when_equal (c: &char) -> impl Fn(Token, Token) -> Token {
+            match c {
+                '=' => move |_, e| e,
+                _ => move |e, _| e
+            }
+        }
+
+        let single_or = when_equal(p?);
+
         match c {
             '(' => return Some(Ok(Token::from(TokenType::LeftParen, "("))),
             ')' => return Some(Ok(Token::from(TokenType::RightParen, ")"))),
@@ -114,38 +124,10 @@ where
             '+' => return Some(Ok(Token::from(TokenType::PLUS, "+"))),
             ';' => return Some(Ok(Token::from(TokenType::SEMICOLON, ";"))),
             '*' => return Some(Ok(Token::from(TokenType::STAR, "*"))),
-            '=' => {
-                if p == Some(&'=') {
-                    self.iterator.next();
-                    return Some(Ok(Token::from(TokenType::EQUALEQUAL, "==")));
-                }
-
-                return Some(Ok(Token::from(TokenType::EQUAL, "=")));
-            }
-            '!' => {
-                if p == Some(&'=') {
-                    self.iterator.next();
-                    return Some(Ok(Token::from(TokenType::BANGEQUAL, "!=")));
-                }
-
-                return Some(Ok(Token::from(TokenType::BANG, "!")));
-            }
-            '<' => {
-                if p == Some(&'=') {
-                    self.iterator.next();
-                    return Some(Ok(Token::from(TokenType::LESSEQUAL, "<=")));
-                }
-
-                return Some(Ok(Token::from(TokenType::LESS, "<")));
-            }
-            '>' => {
-                if p == Some(&'=') {
-                    self.iterator.next();
-                    return Some(Ok(Token::from(TokenType::GREATEREQUAL, ">=")));
-                }
-
-                return Some(Ok(Token::from(TokenType::GREATER, ">")));
-            }
+            '=' => return Some(Ok(single_or(Token::from(TokenType::EQUAL, "="), Token::from(TokenType::EQUALEQUAL, "==")))),
+            '!' => return Some(Ok(single_or(Token::from(TokenType::BANG, "!"), Token::from(TokenType::BANGEQUAL, "!=")))),
+            '<' => return Some(Ok(single_or(Token::from(TokenType::LESS, "<"), Token::from(TokenType::LESSEQUAL, "<=")))),
+            '>' => return Some(Ok(single_or(Token::from(TokenType::GREATER, ">"), Token::from(TokenType::GREATEREQUAL, ">=")))),
             '/' => {
                 if p == Some(&'/') {
                     while self.iterator.peek() != None {
