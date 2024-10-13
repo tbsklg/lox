@@ -103,11 +103,11 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         let c = self.iterator.next()?;
         let p = self.iterator.peek();
-        
-        fn when_equal (c: &char) -> impl Fn(Token, Token) -> Token {
+
+        fn when_equal(c: &char) -> impl Fn(Token, Token) -> Token {
             match c {
                 '=' => move |_, e| e,
-                _ => move |e, _| e
+                _ => move |e, _| e,
             }
         }
 
@@ -124,10 +124,30 @@ where
             '+' => return Some(Ok(Token::from(TokenType::PLUS, "+"))),
             ';' => return Some(Ok(Token::from(TokenType::SEMICOLON, ";"))),
             '*' => return Some(Ok(Token::from(TokenType::STAR, "*"))),
-            '=' => return Some(Ok(single_or(Token::from(TokenType::EQUAL, "="), Token::from(TokenType::EQUALEQUAL, "==")))),
-            '!' => return Some(Ok(single_or(Token::from(TokenType::BANG, "!"), Token::from(TokenType::BANGEQUAL, "!=")))),
-            '<' => return Some(Ok(single_or(Token::from(TokenType::LESS, "<"), Token::from(TokenType::LESSEQUAL, "<=")))),
-            '>' => return Some(Ok(single_or(Token::from(TokenType::GREATER, ">"), Token::from(TokenType::GREATEREQUAL, ">=")))),
+            '=' => {
+                return Some(Ok(single_or(
+                    Token::from(TokenType::EQUAL, "="),
+                    Token::from(TokenType::EQUALEQUAL, "=="),
+                )))
+            }
+            '!' => {
+                return Some(Ok(single_or(
+                    Token::from(TokenType::BANG, "!"),
+                    Token::from(TokenType::BANGEQUAL, "!="),
+                )))
+            }
+            '<' => {
+                return Some(Ok(single_or(
+                    Token::from(TokenType::LESS, "<"),
+                    Token::from(TokenType::LESSEQUAL, "<="),
+                )))
+            }
+            '>' => {
+                return Some(Ok(single_or(
+                    Token::from(TokenType::GREATER, ">"),
+                    Token::from(TokenType::GREATEREQUAL, ">="),
+                )))
+            }
             '/' => {
                 if p == Some(&'/') {
                     while self.iterator.peek() != None {
