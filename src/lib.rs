@@ -8,6 +8,12 @@ pub enum TokenType {
     RightParen,
     LeftBrace,
     RightBrace,
+    STAR,
+    DOT,
+    COMMA,
+    PLUS,
+    MINUS,
+    SEMINCOLON,
     EOF,
 }
 
@@ -18,6 +24,12 @@ impl fmt::Display for TokenType {
             TokenType::RightParen => write!(f, "{}", "RIGHT_PAREN"),
             TokenType::LeftBrace => write!(f, "{}", "LEFT_BRACE"),
             TokenType::RightBrace => write!(f, "{}", "RIGHT_BRACE"),
+            TokenType::DOT => write!(f, "{}", "DOT"),
+            TokenType::COMMA => write!(f, "{}", "COMMA"),
+            TokenType::PLUS => write!(f, "{}", "PLUS"),
+            TokenType::STAR => write!(f, "{}", "STAR"),
+            TokenType::MINUS => write!(f, "{}", "MINUS"),
+            TokenType::SEMINCOLON => write!(f, "{}", "SEMICOLON"),
             TokenType::EOF => write!(f, "{}", "EOF"),
         }
     }
@@ -70,6 +82,12 @@ where
             ')' => return Some(Ok(Token::from(TokenType::RightParen, ")"))),
             '}' => return Some(Ok(Token::from(TokenType::RightBrace, "}"))),
             '{' => return Some(Ok(Token::from(TokenType::LeftBrace, "{"))),
+            ',' => return Some(Ok(Token::from(TokenType::COMMA, ","))),
+            '.' => return Some(Ok(Token::from(TokenType::DOT, "."))),
+            '-' => return Some(Ok(Token::from(TokenType::MINUS, "-"))),
+            '+' => return Some(Ok(Token::from(TokenType::PLUS, "+"))),
+            ';' => return Some(Ok(Token::from(TokenType::SEMICOLON, ";"))),
+            '*' => return Some(Ok(Token::from(TokenType::STAR, "{"))),
             c => return Some(Err(anyhow::anyhow!("Unexpected token: {}", c))),
         };
     }
