@@ -6,6 +6,8 @@ use anyhow::Error;
 pub enum TokenType {
     LeftParen,
     RightParen,
+    LeftBrace,
+    RightBrace,
     EOF,
 }
 
@@ -14,6 +16,8 @@ impl fmt::Display for TokenType {
         match self {
             TokenType::LeftParen => write!(f, "{}", "LEFT_PAREN"),
             TokenType::RightParen => write!(f, "{}", "RIGHT_PAREN"),
+            TokenType::LeftBrace => write!(f, "{}", "LEFT_BRACE"),
+            TokenType::RightBrace => write!(f, "{}", "RIGHT_BRACE"),
             TokenType::EOF => write!(f, "{}", "EOF"),
         }
     }
@@ -64,6 +68,8 @@ where
         match c {
             '(' => return Some(Ok(Token::from(TokenType::LeftParen, "("))),
             ')' => return Some(Ok(Token::from(TokenType::RightParen, ")"))),
+            '}' => return Some(Ok(Token::from(TokenType::RightBrace, "}"))),
+            '{' => return Some(Ok(Token::from(TokenType::LeftBrace, "{"))),
             c => return Some(Err(anyhow::anyhow!("Unexpected token: {}", c))),
         };
     }
