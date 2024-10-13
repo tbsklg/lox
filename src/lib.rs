@@ -13,7 +13,7 @@ pub enum TokenType {
     COMMA,
     PLUS,
     MINUS,
-    SEMINCOLON,
+    SEMICOLON,
     EOF,
 }
 
@@ -29,7 +29,7 @@ impl fmt::Display for TokenType {
             TokenType::PLUS => write!(f, "{}", "PLUS"),
             TokenType::STAR => write!(f, "{}", "STAR"),
             TokenType::MINUS => write!(f, "{}", "MINUS"),
-            TokenType::SEMINCOLON => write!(f, "{}", "SEMICOLON"),
+            TokenType::SEMICOLON => write!(f, "{}", "SEMICOLON"),
             TokenType::EOF => write!(f, "{}", "EOF"),
         }
     }
