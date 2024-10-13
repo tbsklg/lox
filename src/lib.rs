@@ -88,7 +88,7 @@ where
             '+' => return Some(Ok(Token::from(TokenType::PLUS, "+"))),
             ';' => return Some(Ok(Token::from(TokenType::SEMICOLON, ";"))),
             '*' => return Some(Ok(Token::from(TokenType::STAR, "*"))),
-            c => return Some(Err(anyhow::anyhow!("Unexpected token: {}", c))),
+            c => return Some(Err(anyhow::anyhow!("[line 1] Error: Unexpected character: {}", c))),
         };
     }
 }
