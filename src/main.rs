@@ -1,6 +1,8 @@
 use std::env;
 use std::fs;
 
+use codecrafters_interpreter::*;
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
@@ -19,7 +21,15 @@ fn main() {
             });
 
             if !file_contents.is_empty() {
-                panic!("Scanner not implemented");
+                for token in Lexer::new(file_contents.chars()) {
+                    match token {
+                        Ok(token) => println!("{}", token),
+                        Err(e) => {
+                            eprintln!("Error: {}", e);
+                            return;
+                        }
+                    }
+                }
             } else {
                 println!("EOF  null"); // Placeholder, remove this line when implementing the scanner
             }
