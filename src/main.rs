@@ -1,5 +1,6 @@
 use std::env;
 use std::fs;
+use std::process::ExitCode;
 
 use codecrafters_interpreter::*;
 
@@ -12,6 +13,7 @@ fn main() {
 
     let command = &args[1];
     let filename = &args[2];
+    let mut exit_code = 0;
 
     match command.as_str() {
         "tokenize" => {
@@ -19,13 +21,13 @@ fn main() {
                 eprintln!("Failed to read file {}", filename);
                 String::new()
             });
-
+            
             for token in Lexer::new(file_contents.chars()) {
                 match token {
                     Ok(token) => println!("{}", token),
                     Err(e) => {
-                        eprintln!("Error: {}", e);
-                        return;
+                        eprintln!("[line 1]: Error: {}", e);
+                        exit_code = 65;
                     }
                 }
             }
@@ -36,4 +38,6 @@ fn main() {
             return;
         }
     }
+    
+    std::process::exit(exit_code)
 }
