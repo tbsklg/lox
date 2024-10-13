@@ -20,6 +20,10 @@ pub enum TokenType {
     EQUALEQUAL,
     BANG,
     BANGEQUAL,
+    LESSEQUAL,
+    LESS,
+    GREATEREQUAL,
+    GREATER,
 }
 
 impl fmt::Display for TokenType {
@@ -40,6 +44,10 @@ impl fmt::Display for TokenType {
             TokenType::EQUALEQUAL => write!(f, "{}", "EQUAL_EQUAL"),
             TokenType::BANG => write!(f, "{}", "BANG"),
             TokenType::BANGEQUAL => write!(f, "{}", "BANG_EQUAL"),
+            TokenType::LESS => write!(f, "{}", "LESS"),
+            TokenType::LESSEQUAL => write!(f, "{}", "LESS_EQUAL"),            
+            TokenType::GREATER => write!(f, "{}", "GREATER"),
+            TokenType::GREATEREQUAL => write!(f, "{}", "GREATER_EQUAL"),
         }
     }
 }
@@ -119,6 +127,22 @@ where
                 }
 
                 return Some(Ok(Token::from(TokenType::BANG, "!")));
+            }
+            '<' => {
+                if p == Some(&'=') {
+                    self.iterator.next();
+                    return Some(Ok(Token::from(TokenType::LESSEQUAL, "<=")));
+                }
+
+                return Some(Ok(Token::from(TokenType::LESS, "<")));
+            }
+            '>' => {
+                if p == Some(&'=') {
+                    self.iterator.next();
+                    return Some(Ok(Token::from(TokenType::GREATEREQUAL, ">=")));
+                }
+
+                return Some(Ok(Token::from(TokenType::GREATER, ">")));
             }
             c => return Some(Err(anyhow::anyhow!("Unexpected character: {}", c))),
         };
