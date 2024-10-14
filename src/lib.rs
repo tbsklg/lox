@@ -101,8 +101,6 @@ where
     type Item = Result<Token, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let c = self.iterator.next()?;
-        let p = self.iterator.peek();
 
         fn when_equal(c: &char) -> impl Fn(Token, Token) -> Token {
             match c {
@@ -111,66 +109,70 @@ where
             }
         }
 
-        let single_or = when_equal(p?);
+        loop {
+            let c = self.iterator.next()?;
+            let p = self.iterator.peek();
+            let single_or = when_equal(p?);
 
-        match c {
-            '(' => return Some(Ok(Token::from(TokenType::LeftParen, "("))),
-            ')' => return Some(Ok(Token::from(TokenType::RightParen, ")"))),
-            '}' => return Some(Ok(Token::from(TokenType::RightBrace, "}"))),
-            '{' => return Some(Ok(Token::from(TokenType::LeftBrace, "{"))),
-            ',' => return Some(Ok(Token::from(TokenType::COMMA, ","))),
-            '.' => return Some(Ok(Token::from(TokenType::DOT, "."))),
-            '-' => return Some(Ok(Token::from(TokenType::MINUS, "-"))),
-            '+' => return Some(Ok(Token::from(TokenType::PLUS, "+"))),
-            ';' => return Some(Ok(Token::from(TokenType::SEMICOLON, ";"))),
-            '*' => return Some(Ok(Token::from(TokenType::STAR, "*"))),
-            '=' => {
-                return Some(Ok(single_or(
-                    Token::from(TokenType::EQUAL, "="),
-                    Token::from(TokenType::EQUALEQUAL, "=="),
-                )))
-            }
-            '!' => {
-                return Some(Ok(single_or(
-                    Token::from(TokenType::BANG, "!"),
-                    Token::from(TokenType::BANGEQUAL, "!="),
-                )))
-            }
-            '<' => {
-                return Some(Ok(single_or(
-                    Token::from(TokenType::LESS, "<"),
-                    Token::from(TokenType::LESSEQUAL, "<="),
-                )))
-            }
-            '>' => {
-                return Some(Ok(single_or(
-                    Token::from(TokenType::GREATER, ">"),
-                    Token::from(TokenType::GREATEREQUAL, ">="),
-                )))
-            }
-            '/' => {
-                if p == Some(&'/') {
-                    while self.iterator.peek() != Some(&'\n') {
-                        self.iterator.next();
-                    }
-                    return None;
+            match c {
+                '(' => return Some(Ok(Token::from(TokenType::LeftParen, "("))),
+                ')' => return Some(Ok(Token::from(TokenType::RightParen, ")"))),
+                '}' => return Some(Ok(Token::from(TokenType::RightBrace, "}"))),
+                '{' => return Some(Ok(Token::from(TokenType::LeftBrace, "{"))),
+                ',' => return Some(Ok(Token::from(TokenType::COMMA, ","))),
+                '.' => return Some(Ok(Token::from(TokenType::DOT, "."))),
+                '-' => return Some(Ok(Token::from(TokenType::MINUS, "-"))),
+                '+' => return Some(Ok(Token::from(TokenType::PLUS, "+"))),
+                ';' => return Some(Ok(Token::from(TokenType::SEMICOLON, ";"))),
+                '*' => return Some(Ok(Token::from(TokenType::STAR, "*"))),
+                '=' => {
+                    return Some(Ok(single_or(
+                        Token::from(TokenType::EQUAL, "="),
+                        Token::from(TokenType::EQUALEQUAL, "=="),
+                    )))
                 }
+                '!' => {
+                    return Some(Ok(single_or(
+                        Token::from(TokenType::BANG, "!"),
+                        Token::from(TokenType::BANGEQUAL, "!="),
+                    )))
+                }
+                '<' => {
+                    return Some(Ok(single_or(
+                        Token::from(TokenType::LESS, "<"),
+                        Token::from(TokenType::LESSEQUAL, "<="),
+                    )))
+                }
+                '>' => {
+                    return Some(Ok(single_or(
+                        Token::from(TokenType::GREATER, ">"),
+                        Token::from(TokenType::GREATEREQUAL, ">="),
+                    )))
+                }
+                '/' => {
+                    if p == Some(&'/') {
+                        while self.iterator.peek() != Some(&'\n') {
+                            self.iterator.next();
+                        }
+                        continue;
+                    }
 
-                return Some(Ok(Token::from(TokenType::SLASH, "/")));
-            }
-            '\n' => {
-                self.iterator.next();
-                return None;
-            }
-            '\t' => {
-                self.iterator.next();
-                return None;
-            }
-            ' ' => {
-                self.iterator.next();
-                return None;
-            }
-            c => return Some(Err(anyhow::anyhow!("Unexpected character: {}", c))),
-        };
+                    return Some(Ok(Token::from(TokenType::SLASH, "/")));
+                }
+                '\n' => {
+                    self.iterator.next();
+                    continue;
+                }
+                '\t' => {
+                    self.iterator.next();
+                    continue;
+                }
+                ' ' => {
+                    self.iterator.next();
+                    continue;
+                }
+                c => return Some(Err(anyhow::anyhow!("Unexpected character: {}", c))),
+            };
+        }
     }
 }
