@@ -94,6 +94,13 @@ where
     }
 }
 
+enum TokenKind {
+    Single(Token),
+    Double(Token, Token),
+    Error(String),
+    Skip,
+}
+
 impl<I> Iterator for Lexer<I>
 where
     I: Iterator<Item = char>,
@@ -101,54 +108,37 @@ where
     type Item = Result<Token, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-
-        fn when_equal(c: &char) -> impl Fn(Token, Token) -> Token {
-            match c {
-                '=' => move |_, e| e,
-                _ => move |e, _| e,
-            }
-        }
-
         loop {
             let c = self.iterator.next()?;
             let p = self.iterator.peek();
-            let single_or = when_equal(p?);
 
-            match c {
-                '(' => return Some(Ok(Token::from(TokenType::LeftParen, "("))),
-                ')' => return Some(Ok(Token::from(TokenType::RightParen, ")"))),
-                '}' => return Some(Ok(Token::from(TokenType::RightBrace, "}"))),
-                '{' => return Some(Ok(Token::from(TokenType::LeftBrace, "{"))),
-                ',' => return Some(Ok(Token::from(TokenType::COMMA, ","))),
-                '.' => return Some(Ok(Token::from(TokenType::DOT, "."))),
-                '-' => return Some(Ok(Token::from(TokenType::MINUS, "-"))),
-                '+' => return Some(Ok(Token::from(TokenType::PLUS, "+"))),
-                ';' => return Some(Ok(Token::from(TokenType::SEMICOLON, ";"))),
-                '*' => return Some(Ok(Token::from(TokenType::STAR, "*"))),
-                '=' => {
-                    return Some(Ok(single_or(
-                        Token::from(TokenType::EQUAL, "="),
-                        Token::from(TokenType::EQUALEQUAL, "=="),
-                    )))
-                }
-                '!' => {
-                    return Some(Ok(single_or(
-                        Token::from(TokenType::BANG, "!"),
-                        Token::from(TokenType::BANGEQUAL, "!="),
-                    )))
-                }
-                '<' => {
-                    return Some(Ok(single_or(
-                        Token::from(TokenType::LESS, "<"),
-                        Token::from(TokenType::LESSEQUAL, "<="),
-                    )))
-                }
-                '>' => {
-                    return Some(Ok(single_or(
-                        Token::from(TokenType::GREATER, ">"),
-                        Token::from(TokenType::GREATEREQUAL, ">="),
-                    )))
-                }
+            let kind = match c {
+                '(' => TokenKind::Single(Token::from(TokenType::LeftParen, "(")),
+                ')' => TokenKind::Single(Token::from(TokenType::RightParen, ")")),
+                '}' => TokenKind::Single(Token::from(TokenType::RightBrace, "}")),
+                '{' => TokenKind::Single(Token::from(TokenType::LeftBrace, "{")),
+                ',' => TokenKind::Single(Token::from(TokenType::COMMA, ",")),
+                '.' => TokenKind::Single(Token::from(TokenType::DOT, ".")),
+                '-' => TokenKind::Single(Token::from(TokenType::MINUS, "-")),
+                '+' => TokenKind::Single(Token::from(TokenType::PLUS, "+")),
+                ';' => TokenKind::Single(Token::from(TokenType::SEMICOLON, ";")),
+                '*' => TokenKind::Single(Token::from(TokenType::STAR, "*")),
+                '=' => TokenKind::Double(
+                    Token::from(TokenType::EQUAL, "="),
+                    Token::from(TokenType::EQUALEQUAL, "=="),
+                ),
+                '!' => TokenKind::Double(
+                    Token::from(TokenType::BANG, "!"),
+                    Token::from(TokenType::BANGEQUAL, "!="),
+                ),
+                '<' => TokenKind::Double(
+                    Token::from(TokenType::LESS, "<"),
+                    Token::from(TokenType::LESSEQUAL, "<="),
+                ),
+                '>' => TokenKind::Double(
+                    Token::from(TokenType::GREATER, ">"),
+                    Token::from(TokenType::GREATEREQUAL, ">="),
+                ),
                 '/' => {
                     if p == Some(&'/') {
                         while self.iterator.peek() != Some(&'\n') {
@@ -157,22 +147,25 @@ where
                         continue;
                     }
 
-                    return Some(Ok(Token::from(TokenType::SLASH, "/")));
+                    TokenKind::Single(Token::from(TokenType::SLASH, "/"))
                 }
-                '\n' => {
-                    self.iterator.next();
-                    continue;
-                }
-                '\t' => {
-                    self.iterator.next();
-                    continue;
-                }
-                ' ' => {
-                    self.iterator.next();
-                    continue;
-                }
-                c => return Some(Err(anyhow::anyhow!("Unexpected character: {}", c))),
+                '\n' | '\t' | ' ' => TokenKind::Skip,
+                c => TokenKind::Error(format!("Unexpected character: {}", c)),
             };
+
+            match kind {
+                TokenKind::Single(token) => return Some(Ok(token)),
+                TokenKind::Double(token1, token2) => {
+                    if p == Some(&'=') {
+                        self.iterator.next();
+                        return Some(Ok(token2));
+                    } else {
+                        return Some(Ok(token1));
+                    }
+                }
+                TokenKind::Skip => continue,
+                TokenKind::Error(e) => return Some(Err(Error::msg(e))),
+            }
         }
     }
 }
