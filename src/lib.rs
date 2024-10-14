@@ -150,13 +150,25 @@ where
             }
             '/' => {
                 if p == Some(&'/') {
-                    while self.iterator.peek() != None {
+                    while self.iterator.peek() != Some(&'\n') {
                         self.iterator.next();
                     }
                     return None;
                 }
 
                 return Some(Ok(Token::from(TokenType::SLASH, "/")));
+            }
+            '\n' => {
+                self.iterator.next();
+                return None;
+            }
+            '\t' => {
+                self.iterator.next();
+                return None;
+            }
+            ' ' => {
+                self.iterator.next();
+                return None;
             }
             c => return Some(Err(anyhow::anyhow!("Unexpected character: {}", c))),
         };
