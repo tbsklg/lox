@@ -168,7 +168,7 @@ where
                 '/' => TokenKind::Comment(Token::from(TokenType::SLASH, "/")),
                 '\n' => TokenKind::NewLine,
                 '\t' | ' ' => TokenKind::Skip,
-                c => TokenKind::Error(format!("[{}] Error: unexpected character: {}", self.line, c)),
+                c => TokenKind::Error(format!("[{}] Error: Unexpected character: {}", self.line, c)),
             };
 
             match kind {
