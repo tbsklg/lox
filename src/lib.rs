@@ -141,7 +141,8 @@ where
                 ),
                 '/' => {
                     if p == Some(&'/') {
-                        while self.iterator.peek() != Some(&'\n') {
+                        println!("{:?}", self.iterator.peek());
+                        while self.iterator.peek() != None && self.iterator.peek() != Some(&'\n') {
                             self.iterator.next();
                         }
                         continue;
