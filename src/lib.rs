@@ -24,6 +24,7 @@ pub enum TokenType {
     LESS,
     GREATEREQUAL,
     GREATER,
+    STRING,
     SLASH,
 }
 
@@ -50,6 +51,7 @@ impl fmt::Display for TokenType {
             TokenType::GREATER => write!(f, "{}", "GREATER"),
             TokenType::GREATEREQUAL => write!(f, "{}", "GREATER_EQUAL"),
             TokenType::SLASH => write!(f, "{}", "SLASH"),
+            TokenType::STRING => write!(f, "{}", "STRING"),
         }
     }
 }
@@ -66,6 +68,14 @@ impl Token {
             token_type,
             lexeme: lexeme.to_string(),
             literal: "null".to_string(),
+        }
+    }
+
+    pub fn with_literal(token_type: TokenType, lexeme: &str, literal: &str) -> Self {
+        Token {
+            token_type,
+            lexeme: lexeme.to_string(),
+            literal: literal.to_string(),
         }
     }
 }
@@ -123,6 +133,7 @@ enum TokenKind {
     Error(String),
     Comment(Token),
     NewLine,
+    String,
     Skip,
 }
 
@@ -136,7 +147,6 @@ where
         loop {
             let c = self.iterator.next()?;
             let p = self.iterator.peek();
-
 
             let kind = match c {
                 '(' => TokenKind::Single(Token::from(TokenType::LeftParen, "(")),
@@ -167,8 +177,12 @@ where
                 ),
                 '/' => TokenKind::Comment(Token::from(TokenType::SLASH, "/")),
                 '\n' => TokenKind::NewLine,
+                '"' => TokenKind::String,
                 '\t' | ' ' => TokenKind::Skip,
-                c => TokenKind::Error(format!("[{}] Error: Unexpected character: {}", self.line, c)),
+                c => TokenKind::Error(format!(
+                    "[{}] Error: Unexpected character: {}",
+                    self.line, c
+                )),
             };
 
             match kind {
@@ -193,6 +207,19 @@ where
                 TokenKind::NewLine => {
                     self.line.increment();
                     continue;
+                }
+                TokenKind::String => {
+                    let mut literal = "".to_string();
+                    while self.iterator.peek() != Some(&'"') {
+                        let s = self.iterator.next()?;
+                        literal.push_str(&s.to_string());
+                    }
+
+                    return Some(Ok(Token::with_literal(
+                        TokenType::STRING,
+                        literal.as_str(),
+                        literal.as_str(),
+                    )));
                 }
                 TokenKind::Skip => continue,
                 TokenKind::Error(e) => return Some(Err(Error::msg(e))),
