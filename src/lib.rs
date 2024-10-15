@@ -98,6 +98,7 @@ enum TokenKind {
     Single(Token),
     Double(Token, Token),
     Error(String),
+    Comment(Token),
     Skip,
 }
 
@@ -139,17 +140,7 @@ where
                     Token::from(TokenType::GREATER, ">"),
                     Token::from(TokenType::GREATEREQUAL, ">="),
                 ),
-                '/' => {
-                    if p == Some(&'/') {
-                        println!("{:?}", self.iterator.peek());
-                        while self.iterator.peek() != None && self.iterator.peek() != Some(&'\n') {
-                            self.iterator.next();
-                        }
-                        continue;
-                    }
-
-                    TokenKind::Single(Token::from(TokenType::SLASH, "/"))
-                }
+                '/' => TokenKind::Comment(Token::from(TokenType::SLASH, "/")),
                 '\n' | '\t' | ' ' => TokenKind::Skip,
                 c => TokenKind::Error(format!("Unexpected character: {}", c)),
             };
@@ -163,6 +154,15 @@ where
                     } else {
                         return Some(Ok(token1));
                     }
+                }
+                TokenKind::Comment(token) =>  {
+                    if p == Some(&'/') {
+                            while self.iterator.peek() != None && self.iterator.peek() != Some(&'\n') {
+                            self.iterator.next();
+                        }
+                        continue;
+                    }
+                    return Some(Ok(token));
                 }
                 TokenKind::Skip => continue,
                 TokenKind::Error(e) => return Some(Err(Error::msg(e))),
