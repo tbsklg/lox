@@ -217,7 +217,7 @@ where
 
                     return Some(Ok(Token::with_literal(
                         TokenType::STRING,
-                        literal.as_str(),
+                        format!("\"{}\"", literal.as_str()).as_str(),
                         literal.as_str(),
                     )));
                 }
