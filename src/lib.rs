@@ -81,6 +81,28 @@ where
     I: Iterator,
 {
     iterator: Peekable<I>,
+    line: Line,
+}
+
+#[derive(Debug)]
+struct Line {
+    line: u32,
+}
+
+impl Line {
+    pub fn start_from(line: u32) -> Self {
+        Self { line }
+    }
+
+    pub fn increment(&mut self) {
+        self.line += 1
+    }
+}
+
+impl fmt::Display for Line {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "line {}", self.line)
+    }
 }
 
 impl<I> Lexer<I>
@@ -90,6 +112,7 @@ where
     pub fn new(input: impl IntoIterator<Item = char, IntoIter = I>) -> Self {
         Self {
             iterator: input.into_iter().peekable(),
+            line: Line::start_from(1),
         }
     }
 }
@@ -99,6 +122,7 @@ enum TokenKind {
     Double(Token, Token),
     Error(String),
     Comment(Token),
+    NewLine,
     Skip,
 }
 
@@ -112,6 +136,7 @@ where
         loop {
             let c = self.iterator.next()?;
             let p = self.iterator.peek();
+
 
             let kind = match c {
                 '(' => TokenKind::Single(Token::from(TokenType::LeftParen, "(")),
@@ -141,8 +166,9 @@ where
                     Token::from(TokenType::GREATEREQUAL, ">="),
                 ),
                 '/' => TokenKind::Comment(Token::from(TokenType::SLASH, "/")),
-                '\n' | '\t' | ' ' => TokenKind::Skip,
-                c => TokenKind::Error(format!("Unexpected character: {}", c)),
+                '\n' => TokenKind::NewLine,
+                '\t' | ' ' => TokenKind::Skip,
+                c => TokenKind::Error(format!("[{}] Error: unexpected character: {}", self.line, c)),
             };
 
             match kind {
@@ -155,14 +181,18 @@ where
                         return Some(Ok(token1));
                     }
                 }
-                TokenKind::Comment(token) =>  {
+                TokenKind::Comment(token) => {
                     if p == Some(&'/') {
-                            while self.iterator.peek() != None && self.iterator.peek() != Some(&'\n') {
+                        while self.iterator.peek() != None && self.iterator.peek() != Some(&'\n') {
                             self.iterator.next();
                         }
                         continue;
                     }
                     return Some(Ok(token));
+                }
+                TokenKind::NewLine => {
+                    self.line.increment();
+                    continue;
                 }
                 TokenKind::Skip => continue,
                 TokenKind::Error(e) => return Some(Err(Error::msg(e))),
