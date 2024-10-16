@@ -232,7 +232,6 @@ where
                     {
                         capture.push_str(&self.iterator.next()?.to_string());
                     }
-                    self.iterator.next();
                     return Some(Ok(Token::with_literal(TokenType::NUMBER(capture.clone()))));
                 }
                 TokenKind::Error(e) => return Some(Err(Error::msg(e))),
