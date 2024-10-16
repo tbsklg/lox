@@ -209,16 +209,16 @@ where
                     continue;
                 }
                 TokenKind::String => {
-                    let mut literal = "".to_string();
+                    let mut capture = "".to_string();
                     while self.iterator.peek() != Some(&'"') {
-                        let s = self.iterator.next()?;
-                        literal.push_str(&s.to_string());
+                        capture.push_str(&self.iterator.next()?.to_string());
                     }
+                    self.iterator.next();
 
                     return Some(Ok(Token::with_literal(
                         TokenType::STRING,
-                        format!("\"{}\"", literal.as_str()).as_str(),
-                        literal.as_str(),
+                        format!("\"{}\"", capture.as_str()).as_str(),
+                        capture.as_str(),
                     )));
                 }
                 TokenKind::Skip => continue,
