@@ -26,7 +26,7 @@ pub enum TokenType {
     GREATER,
     STRING(String),
     SLASH,
-    NUMBER(f64),
+    NUMBER(String),
 }
 
 impl fmt::Display for TokenType {
@@ -53,7 +53,7 @@ impl fmt::Display for TokenType {
             TokenType::GREATEREQUAL => write!(f, "{}", "GREATER_EQUAL >= null"),
             TokenType::SLASH => write!(f, "{}", "SLASH / null"),
             TokenType::STRING(s) => write!(f, "{} \"{}\" {}", "STRING", s, s),
-            TokenType::NUMBER(n) => write!(f, "{} {} {:?}", "NUMBER", n, n),
+            TokenType::NUMBER(s) => write!(f, "{} {} {:?}", "NUMBER", s, s.parse::<f64>().unwrap()),
         }
     }
 }
@@ -233,8 +233,7 @@ where
                         capture.push_str(&self.iterator.next()?.to_string());
                     }
                     self.iterator.next();
-                    let f = capture.parse::<f64>().unwrap();
-                    return Some(Ok(Token::with_literal(TokenType::NUMBER(f))));
+                    return Some(Ok(Token::with_literal(TokenType::NUMBER(capture.clone()))));
                 }
                 TokenKind::Error(e) => return Some(Err(Error::msg(e))),
             }
