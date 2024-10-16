@@ -213,7 +213,7 @@ where
                     while self.iterator.peek() != Some(&'"') {
                         if self.iterator.peek() == None {
                             return Some(Err(Error::msg(format!(
-                                "[{}] Error: Unterminated string",
+                                "[{}] Error: Unterminated string.",
                                 self.line
                             ))));
                         }
