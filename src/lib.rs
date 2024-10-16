@@ -24,65 +24,57 @@ pub enum TokenType {
     LESS,
     GREATEREQUAL,
     GREATER,
-    STRING,
+    STRING(String),
     SLASH,
+    NUMBER(f64),
 }
 
 impl fmt::Display for TokenType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TokenType::EOF => write!(f, "{}", "EOF"),
-            TokenType::LeftParen => write!(f, "{}", "LEFT_PAREN"),
-            TokenType::RightParen => write!(f, "{}", "RIGHT_PAREN"),
-            TokenType::LeftBrace => write!(f, "{}", "LEFT_BRACE"),
-            TokenType::RightBrace => write!(f, "{}", "RIGHT_BRACE"),
-            TokenType::DOT => write!(f, "{}", "DOT"),
-            TokenType::COMMA => write!(f, "{}", "COMMA"),
-            TokenType::PLUS => write!(f, "{}", "PLUS"),
-            TokenType::STAR => write!(f, "{}", "STAR"),
-            TokenType::MINUS => write!(f, "{}", "MINUS"),
-            TokenType::SEMICOLON => write!(f, "{}", "SEMICOLON"),
-            TokenType::EQUAL => write!(f, "{}", "EQUAL"),
-            TokenType::EQUALEQUAL => write!(f, "{}", "EQUAL_EQUAL"),
-            TokenType::BANG => write!(f, "{}", "BANG"),
-            TokenType::BANGEQUAL => write!(f, "{}", "BANG_EQUAL"),
-            TokenType::LESS => write!(f, "{}", "LESS"),
-            TokenType::LESSEQUAL => write!(f, "{}", "LESS_EQUAL"),
-            TokenType::GREATER => write!(f, "{}", "GREATER"),
-            TokenType::GREATEREQUAL => write!(f, "{}", "GREATER_EQUAL"),
-            TokenType::SLASH => write!(f, "{}", "SLASH"),
-            TokenType::STRING => write!(f, "{}", "STRING"),
+            TokenType::EOF => write!(f, "{}", "EOF null"),
+            TokenType::LeftParen => write!(f, "{}", "LEFT_PAREN ( null"),
+            TokenType::RightParen => write!(f, "{}", "RIGHT_PAREN ) null"),
+            TokenType::LeftBrace => write!(f, "{}", "LEFT_BRACE { null"),
+            TokenType::RightBrace => write!(f, "{}", "RIGHT_BRACE } null"),
+            TokenType::DOT => write!(f, "{}", "DOT . null"),
+            TokenType::COMMA => write!(f, "{}", "COMMA , null"),
+            TokenType::PLUS => write!(f, "{}", "PLUS + null"),
+            TokenType::STAR => write!(f, "{}", "STAR * null"),
+            TokenType::MINUS => write!(f, "{}", "MINUS - null"),
+            TokenType::SEMICOLON => write!(f, "{}", "SEMICOLON ; null"),
+            TokenType::EQUAL => write!(f, "{}", "EQUAL = null"),
+            TokenType::EQUALEQUAL => write!(f, "{}", "EQUAL_EQUAL == null"),
+            TokenType::BANG => write!(f, "{}", "BANG ! null"),
+            TokenType::BANGEQUAL => write!(f, "{}", "BANG_EQUAL != null"),
+            TokenType::LESS => write!(f, "{}", "LESS < null"),
+            TokenType::LESSEQUAL => write!(f, "{}", "LESS_EQUAL <= null"),
+            TokenType::GREATER => write!(f, "{}", "GREATER > null"),
+            TokenType::GREATEREQUAL => write!(f, "{}", "GREATER_EQUAL >= null"),
+            TokenType::SLASH => write!(f, "{}", "SLASH / null"),
+            TokenType::STRING(s) => write!(f, "{} \"{}\" {}", "STRING", s, s),
+            TokenType::NUMBER(n) => write!(f, "{} {} {}", "NUMBER", n, n),
         }
     }
 }
 
 pub struct Token {
     token_type: TokenType,
-    lexeme: String,
-    literal: String,
 }
 
 impl Token {
-    pub fn from(token_type: TokenType, lexeme: &str) -> Self {
-        Token {
-            token_type,
-            lexeme: lexeme.to_string(),
-            literal: "null".to_string(),
-        }
+    pub fn from(token_type: TokenType) -> Self {
+        Token { token_type }
     }
 
-    pub fn with_literal(token_type: TokenType, lexeme: &str, literal: &str) -> Self {
-        Token {
-            token_type,
-            lexeme: lexeme.to_string(),
-            literal: literal.to_string(),
-        }
+    pub fn with_literal(token_type: TokenType) -> Self {
+        Token { token_type }
     }
 }
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {} {}", self.token_type, self.lexeme, self.literal)
+        write!(f, "{}", self.token_type)
     }
 }
 
@@ -135,6 +127,7 @@ enum TokenKind {
     NewLine,
     String,
     Skip,
+    Number,
 }
 
 impl<I> Iterator for Lexer<I>
@@ -149,40 +142,46 @@ where
             let p = self.iterator.peek();
 
             let kind = match c {
-                '(' => TokenKind::Single(Token::from(TokenType::LeftParen, "(")),
-                ')' => TokenKind::Single(Token::from(TokenType::RightParen, ")")),
-                '}' => TokenKind::Single(Token::from(TokenType::RightBrace, "}")),
-                '{' => TokenKind::Single(Token::from(TokenType::LeftBrace, "{")),
-                ',' => TokenKind::Single(Token::from(TokenType::COMMA, ",")),
-                '.' => TokenKind::Single(Token::from(TokenType::DOT, ".")),
-                '-' => TokenKind::Single(Token::from(TokenType::MINUS, "-")),
-                '+' => TokenKind::Single(Token::from(TokenType::PLUS, "+")),
-                ';' => TokenKind::Single(Token::from(TokenType::SEMICOLON, ";")),
-                '*' => TokenKind::Single(Token::from(TokenType::STAR, "*")),
+                '(' => TokenKind::Single(Token::from(TokenType::LeftParen)),
+                ')' => TokenKind::Single(Token::from(TokenType::RightParen)),
+                '}' => TokenKind::Single(Token::from(TokenType::RightBrace)),
+                '{' => TokenKind::Single(Token::from(TokenType::LeftBrace)),
+                ',' => TokenKind::Single(Token::from(TokenType::COMMA)),
+                '.' => TokenKind::Single(Token::from(TokenType::DOT)),
+                '-' => TokenKind::Single(Token::from(TokenType::MINUS)),
+                '+' => TokenKind::Single(Token::from(TokenType::PLUS)),
+                ';' => TokenKind::Single(Token::from(TokenType::SEMICOLON)),
+                '*' => TokenKind::Single(Token::from(TokenType::STAR)),
                 '=' => TokenKind::Double(
-                    Token::from(TokenType::EQUAL, "="),
-                    Token::from(TokenType::EQUALEQUAL, "=="),
+                    Token::from(TokenType::EQUAL),
+                    Token::from(TokenType::EQUALEQUAL),
                 ),
                 '!' => TokenKind::Double(
-                    Token::from(TokenType::BANG, "!"),
-                    Token::from(TokenType::BANGEQUAL, "!="),
+                    Token::from(TokenType::BANG),
+                    Token::from(TokenType::BANGEQUAL),
                 ),
                 '<' => TokenKind::Double(
-                    Token::from(TokenType::LESS, "<"),
-                    Token::from(TokenType::LESSEQUAL, "<="),
+                    Token::from(TokenType::LESS),
+                    Token::from(TokenType::LESSEQUAL),
                 ),
                 '>' => TokenKind::Double(
-                    Token::from(TokenType::GREATER, ">"),
-                    Token::from(TokenType::GREATEREQUAL, ">="),
+                    Token::from(TokenType::GREATER),
+                    Token::from(TokenType::GREATEREQUAL),
                 ),
-                '/' => TokenKind::Comment(Token::from(TokenType::SLASH, "/")),
+                '/' => TokenKind::Comment(Token::from(TokenType::SLASH)),
                 '\n' => TokenKind::NewLine,
                 '"' => TokenKind::String,
                 '\t' | ' ' => TokenKind::Skip,
-                c => TokenKind::Error(format!(
-                    "[{}] Error: Unexpected character: {}",
-                    self.line, c
-                )),
+                c => {
+                    if c.is_digit(10) {
+                        TokenKind::Number
+                    } else {
+                        TokenKind::Error(format!(
+                            "[{}] Error: Unexpected character: {}",
+                            self.line, c
+                        ))
+                    }
+                }
             };
 
             match kind {
@@ -222,13 +221,23 @@ where
                     }
                     self.iterator.next();
 
-                    return Some(Ok(Token::with_literal(
-                        TokenType::STRING,
-                        format!("\"{}\"", capture.as_str()).as_str(),
-                        capture.as_str(),
-                    )));
+                    return Some(Ok(Token::with_literal(TokenType::STRING(capture.clone()))));
                 }
                 TokenKind::Skip => continue,
+                TokenKind::Number => {
+                    let mut capture = "".to_string();
+                    while self.iterator.peek() != None
+                        && self.iterator.peek() != Some(&'\n')
+                        && self.iterator.peek() != Some(&' ')
+                    {
+                        capture.push_str(&self.iterator.next()?.to_string());
+                    }
+                    self.iterator.next();
+
+                    println!("{:?}", capture);
+                    let f = capture.parse::<f64>().unwrap();
+                    return Some(Ok(Token::with_literal(TokenType::NUMBER(f))));
+                }
                 TokenKind::Error(e) => return Some(Err(Error::msg(e))),
             }
         }
