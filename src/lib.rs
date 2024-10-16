@@ -211,6 +211,13 @@ where
                 TokenKind::String => {
                     let mut capture = "".to_string();
                     while self.iterator.peek() != Some(&'"') {
+                        if self.iterator.peek() == None {
+                            return Some(Err(Error::msg(format!(
+                                "[{}] Error: Unterminated string",
+                                self.line
+                            ))));
+                        }
+
                         capture.push_str(&self.iterator.next()?.to_string());
                     }
                     self.iterator.next();
