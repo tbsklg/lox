@@ -227,8 +227,8 @@ where
                 TokenKind::Number => {
                     let mut capture = c.to_string();
                     while self.iterator.peek() != None
-                        && self.iterator.peek() != Some(&'\n')
-                        && self.iterator.peek() != Some(&' ')
+                        && (self.iterator.peek().unwrap().is_digit(10)
+                            || self.iterator.peek() == Some(&'.'))
                     {
                         capture.push_str(&self.iterator.next()?.to_string());
                     }
