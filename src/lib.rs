@@ -53,7 +53,7 @@ impl fmt::Display for TokenType {
             TokenType::GREATEREQUAL => write!(f, "{}", "GREATER_EQUAL >= null"),
             TokenType::SLASH => write!(f, "{}", "SLASH / null"),
             TokenType::STRING(s) => write!(f, "{} \"{}\" {}", "STRING", s, s),
-            TokenType::NUMBER(n) => write!(f, "{} {} {}", "NUMBER", n, n),
+            TokenType::NUMBER(n) => write!(f, "{} {} {:?}", "NUMBER", n, n),
         }
     }
 }
@@ -225,7 +225,7 @@ where
                 }
                 TokenKind::Skip => continue,
                 TokenKind::Number => {
-                    let mut capture = "".to_string();
+                    let mut capture = c.to_string();
                     while self.iterator.peek() != None
                         && self.iterator.peek() != Some(&'\n')
                         && self.iterator.peek() != Some(&' ')
