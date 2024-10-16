@@ -233,8 +233,6 @@ where
                         capture.push_str(&self.iterator.next()?.to_string());
                     }
                     self.iterator.next();
-
-                    println!("{:?}", capture);
                     let f = capture.parse::<f64>().unwrap();
                     return Some(Ok(Token::with_literal(TokenType::NUMBER(f))));
                 }
