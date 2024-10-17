@@ -27,6 +27,7 @@ pub enum TokenType {
     STRING(String),
     SLASH,
     NUMBER(String),
+    IDENTIFIER(String),
 }
 
 impl fmt::Display for TokenType {
@@ -54,6 +55,7 @@ impl fmt::Display for TokenType {
             TokenType::SLASH => write!(f, "{}", "SLASH / null"),
             TokenType::STRING(s) => write!(f, "{} \"{}\" {}", "STRING", s, s),
             TokenType::NUMBER(s) => write!(f, "{} {} {:?}", "NUMBER", s, s.parse::<f64>().unwrap()),
+            TokenType::IDENTIFIER(s) => write!(f, "{} {} null", "IDENTIFIER", s),
         }
     }
 }
@@ -128,6 +130,7 @@ enum TokenKind {
     String,
     Skip,
     Number,
+    Identifier,
 }
 
 impl<I> Iterator for Lexer<I>
@@ -175,6 +178,8 @@ where
                 c => {
                     if c.is_digit(10) {
                         TokenKind::Number
+                    } else if c.is_alphabetic() || c == '_' {
+                        TokenKind::Identifier
                     } else {
                         TokenKind::Error(format!(
                             "[{}] Error: Unexpected character: {}",
@@ -234,6 +239,18 @@ where
                     }
                     return Some(Ok(Token::with_literal(TokenType::NUMBER(capture.clone()))));
                 }
+                TokenKind::Identifier => {
+                    let mut capture = c.to_string();
+                    while self.iterator.peek() != None
+                        && (self.iterator.peek().unwrap().is_alphabetic()
+                            || self.iterator.peek() == Some(&'_'))
+                    {
+                       capture.push_str(&self.iterator.next()?.to_string()); 
+                    }
+                    return Some(Ok(Token::with_literal(
+                        TokenType::IDENTIFIER(capture)
+                    )))
+                },
                 TokenKind::Error(e) => return Some(Err(Error::msg(e))),
             }
         }
