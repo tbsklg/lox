@@ -242,7 +242,7 @@ where
                 TokenKind::Identifier => {
                     let mut capture = c.to_string();
                     while self.iterator.peek() != None
-                        && (self.iterator.peek().unwrap().is_alphabetic()
+                        && (self.iterator.peek().unwrap().is_alphanumeric()
                             || self.iterator.peek() == Some(&'_'))
                     {
                        capture.push_str(&self.iterator.next()?.to_string()); 
