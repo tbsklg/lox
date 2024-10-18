@@ -1,9 +1,9 @@
 use core::fmt;
-use std::iter::Peekable;
+use std::{collections::HashMap, iter::Peekable};
 
 use anyhow::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TokenType {
     LeftParen,
     RightParen,
@@ -28,6 +28,22 @@ pub enum TokenType {
     SLASH,
     NUMBER(String),
     IDENTIFIER(String),
+    AND,
+    CLASS,
+    ELSE,
+    FALSE,
+    FOR,
+    FUN,
+    IF,
+    NIL,
+    OR,
+    PRINT,
+    RETURN,
+    SUPER,
+    THIS,
+    TRUE,
+    VAR,
+    WHILE,
 }
 
 impl fmt::Display for TokenType {
@@ -56,6 +72,22 @@ impl fmt::Display for TokenType {
             TokenType::STRING(s) => write!(f, "{} \"{}\" {}", "STRING", s, s),
             TokenType::NUMBER(s) => write!(f, "{} {} {:?}", "NUMBER", s, s.parse::<f64>().unwrap()),
             TokenType::IDENTIFIER(s) => write!(f, "{} {} null", "IDENTIFIER", s),
+            TokenType::AND => write!(f, "{}  null", "AND"),
+            TokenType::CLASS => write!(f, "{}", "CLASS  null"),
+            TokenType::ELSE => write!(f, "{}", "ELSE  null"),
+            TokenType::FALSE => write!(f, "{}", "FALSE  null"),
+            TokenType::FOR => write!(f, "{}", "FOR  null"),
+            TokenType::FUN => write!(f, "{}", "FUN  null"),
+            TokenType::IF => write!(f, "{}", "IF  null"),
+            TokenType::NIL => write!(f, "{}", "NIL  null"),
+            TokenType::OR => write!(f, "{}", "OR  null"),
+            TokenType::PRINT => write!(f, "{}", "PRINT  null"),
+            TokenType::RETURN => write!(f, "{}", "RETURN  null"),
+            TokenType::SUPER => write!(f, "{}", "SUPER  null"),
+            TokenType::THIS => write!(f, "{}", "THIS  null"),
+            TokenType::TRUE => write!(f, "{}", "TRUE null"),
+            TokenType::VAR => write!(f, "{}", "VAR  null"),
+            TokenType::WHILE => write!(f, "{}", "WHILE  null"),
         }
     }
 }
@@ -80,14 +112,6 @@ impl fmt::Display for Token {
     }
 }
 
-pub struct Lexer<I>
-where
-    I: Iterator,
-{
-    iterator: Peekable<I>,
-    line: Line,
-}
-
 #[derive(Debug)]
 struct Line {
     line: u32,
@@ -109,6 +133,15 @@ impl fmt::Display for Line {
     }
 }
 
+pub struct Lexer<I>
+where
+    I: Iterator,
+{
+    iterator: Peekable<I>,
+    line: Line,
+    reserved_words: HashMap<String, TokenType>,
+}
+
 impl<I> Lexer<I>
 where
     I: Iterator<Item = char>,
@@ -117,6 +150,24 @@ where
         Self {
             iterator: input.into_iter().peekable(),
             line: Line::start_from(1),
+            reserved_words: HashMap::from([
+                (String::from("and"), TokenType::AND),
+                (String::from("class"), TokenType::CLASS),
+                (String::from("else"), TokenType::ELSE),
+                (String::from("false"), TokenType::FALSE),
+                (String::from("for"), TokenType::FOR),
+                (String::from("fun"), TokenType::FUN),
+                (String::from("if"), TokenType::IF),
+                (String::from("nil"), TokenType::NIL),
+                (String::from("or"), TokenType::OR),
+                (String::from("print"), TokenType::PRINT),
+                (String::from("return"), TokenType::RETURN),
+                (String::from("super"), TokenType::SUPER),
+                (String::from("this"), TokenType::THIS),
+                (String::from("true"), TokenType::TRUE),
+                (String::from("var"), TokenType::VAR),
+                (String::from("while"), TokenType::WHILE),
+            ]),
         }
     }
 }
@@ -245,12 +296,17 @@ where
                         && (self.iterator.peek().unwrap().is_alphanumeric()
                             || self.iterator.peek() == Some(&'_'))
                     {
-                       capture.push_str(&self.iterator.next()?.to_string()); 
+                        capture.push_str(&self.iterator.next()?.to_string());
                     }
-                    return Some(Ok(Token::with_literal(
-                        TokenType::IDENTIFIER(capture)
-                    )))
-                },
+
+                    let token_type = self
+                        .reserved_words
+                        .get(&capture)
+                        .cloned()
+                        .unwrap_or_else(|| TokenType::IDENTIFIER(capture.clone()));
+
+                    return Some(Ok(Token::with_literal(token_type)));
+                }
                 TokenKind::Error(e) => return Some(Err(Error::msg(e))),
             }
         }
