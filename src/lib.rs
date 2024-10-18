@@ -72,7 +72,7 @@ impl fmt::Display for TokenType {
             TokenType::STRING(s) => write!(f, "{} \"{}\" {}", "STRING", s, s),
             TokenType::NUMBER(s) => write!(f, "{} {} {:?}", "NUMBER", s, s.parse::<f64>().unwrap()),
             TokenType::IDENTIFIER(s) => write!(f, "{} {} null", "IDENTIFIER", s),
-            TokenType::AND => write!(f, "{}  null", "AND"),
+            TokenType::AND => write!(f, "{}", "AND and null"),
             TokenType::CLASS => write!(f, "{}", "CLASS class null"),
             TokenType::ELSE => write!(f, "{}", "ELSE else null"),
             TokenType::FALSE => write!(f, "{}", "FALSE false null"),
