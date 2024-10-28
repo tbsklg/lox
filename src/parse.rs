@@ -7,7 +7,7 @@ use crate::lex::{Lexer, TokenType};
 
 #[derive(Debug)]
 pub struct Expression {
-    literal: bool,
+    literal: String,
 }
 
 impl fmt::Display for Expression {
@@ -35,8 +35,9 @@ impl<'e> Parser<'e> {
         let e = match c {
             Some(t) => match t {
                 Ok(tt) => match tt {
-                    TokenType::TRUE => Expression { literal: true },
-                    TokenType::FALSE => Expression { literal: false },
+                    TokenType::TRUE => Expression { literal: true.to_string() },
+                    TokenType::FALSE => Expression { literal: false.to_string() },
+                    TokenType::NIL => Expression { literal: "nil".to_string() },
                     _ => todo!(),
                 }
                 Err(_e) => todo!(),
