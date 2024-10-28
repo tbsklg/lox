@@ -25,7 +25,7 @@ impl<'e> Parser<'e> {
     pub fn new(input: &'e str) -> Self {
         Self {
             input,
-            lexer: Lexer::new(input).peekable(), 
+            lexer: Lexer::new(input).peekable(),
         }
     }
 
@@ -35,18 +35,25 @@ impl<'e> Parser<'e> {
         let e = match c {
             Some(t) => match t {
                 Ok(tt) => match tt {
-                    TokenType::TRUE => Expression { literal: true.to_string() },
-                    TokenType::FALSE => Expression { literal: false.to_string() },
-                    TokenType::NIL => Expression { literal: "nil".to_string() },
-                    TokenType::NUMBER(n) => Expression { literal: (n.parse::<f64>().unwrap()).to_string() },
+                    TokenType::TRUE => Expression {
+                        literal: true.to_string(),
+                    },
+                    TokenType::FALSE => Expression {
+                        literal: false.to_string(),
+                    },
+                    TokenType::NIL => Expression {
+                        literal: "nil".to_string(),
+                    },
+                    TokenType::NUMBER(n) => Expression {
+                        literal: format!("{:?}", n.parse::<f64>().unwrap()),
+                    },
                     _ => todo!(),
-                }
+                },
                 Err(_e) => todo!(),
-            }
+            },
             None => todo!(),
         };
 
         Ok(e)
     }
 }
-
