@@ -36,6 +36,7 @@ impl<'e> Parser<'e> {
             Some(t) => match t {
                 Ok(tt) => match tt {
                     TokenType::TRUE => Expression { literal: true },
+                    TokenType::FALSE => Expression { literal: false },
                     _ => todo!(),
                 }
                 Err(_e) => todo!(),
