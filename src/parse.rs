@@ -39,6 +39,7 @@ impl<'e> Parser<'e> {
                     TokenType::FALSE => Expression { literal: false.to_string() },
                     TokenType::NIL => Expression { literal: "nil".to_string() },
                     TokenType::NUMBER(n) => Expression { literal: n.to_string() },
+                    TokenType::DOUBLE(n) => Expression { literal: n.to_string() },
                     _ => todo!(),
                 }
                 Err(_e) => todo!(),
