@@ -47,6 +47,9 @@ impl<'e> Parser<'e> {
                     TokenType::NUMBER(n) => Expression {
                         literal: format!("{:?}", n.parse::<f64>().unwrap()),
                     },
+                    TokenType::STRING(s) => Expression {
+                        literal: s,
+                    },
                     _ => todo!(),
                 },
                 Err(_e) => todo!(),
