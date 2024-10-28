@@ -12,16 +12,17 @@ fn main() {
 
     let command = &args[1];
     let filename = &args[2];
+
     let mut exit_code = 0;
+
+    let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
+        eprintln!("Failed to read file {}", filename);
+        String::new()
+    });
 
     match command.as_str() {
         "tokenize" => {
-            let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
-                eprintln!("Failed to read file {}", filename);
-                String::new()
-            });
-
-            for token in Lexer::new(file_contents.chars()) {
+            for token in lex::Lexer::new(&file_contents) {
                 match token {
                     Ok(token) => println!("{}", token),
                     Err(e) => {
@@ -30,7 +31,19 @@ fn main() {
                     }
                 }
             }
+
             println!("EOF  null"); // Placeholder, remove this line when implementing the scanner
+        }
+        "parse" => {
+            let ast = parse::Parser::new(&file_contents).parse();
+
+            match ast {
+                Ok(ast) => println!("{}", ast),
+                Err(e) => {
+                    eprintln!("{}", e);
+                    exit_code = 65;
+                }
+            }
         }
         _ => {
             eprintln!("Unknown command: {}", command);
