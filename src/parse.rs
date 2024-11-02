@@ -36,7 +36,7 @@ impl fmt::Display for LiteralValue {
             LiteralValue::Nil => &"nil".to_string(),
             LiteralValue::Number(n) => &format!("{:?}", n),
         };
-        write!(f, "{:?}", literal)
+        write!(f, "{}", literal)
     }
 }
 
