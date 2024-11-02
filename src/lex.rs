@@ -70,7 +70,7 @@ impl fmt::Display for TokenType {
             TokenType::GREATEREQUAL => write!(f, "{}", "GREATER_EQUAL >= null"),
             TokenType::SLASH => write!(f, "{}", "SLASH / null"),
             TokenType::STRING(s) => write!(f, "{} \"{}\" {}", "STRING", s, s),
-            TokenType::NUMBER(s) => write!(f, "{} {:?} {:?}", "NUMBER", s, s),
+            TokenType::NUMBER(s) => write!(f, "{} {} {:?}", "NUMBER", s, s),
             TokenType::IDENTIFIER(s) => write!(f, "{} {} null", "IDENTIFIER", s),
             TokenType::AND => write!(f, "{}", "AND and null"),
             TokenType::CLASS => write!(f, "{}", "CLASS class null"),
