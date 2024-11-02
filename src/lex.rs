@@ -72,7 +72,7 @@ impl fmt::Display for TokenType {
             TokenType::STRING(s) => write!(f, "{} \"{}\" {}", "STRING", s, s),
             TokenType::NUMBER(s) => {
                 if s.fract() == 0.0 {
-                    write!(f, "{} {} {:?}", "NUMBER", s, s)
+                    write!(f, "{} {:?} {:?}", "NUMBER", s, s)
                 } else {
                     write!(f, "{} {:?} {}", "NUMBER", s, s)
                 }
