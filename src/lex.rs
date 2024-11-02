@@ -26,7 +26,7 @@ pub enum TokenType {
     GREATER,
     STRING(String),
     SLASH,
-    NUMBER(String),
+    NUMBER(f64),
     IDENTIFIER(String),
     AND,
     CLASS,
@@ -70,7 +70,7 @@ impl fmt::Display for TokenType {
             TokenType::GREATEREQUAL => write!(f, "{}", "GREATER_EQUAL >= null"),
             TokenType::SLASH => write!(f, "{}", "SLASH / null"),
             TokenType::STRING(s) => write!(f, "{} \"{}\" {}", "STRING", s, s),
-            TokenType::NUMBER(s) => write!(f, "{} {} {:?}", "NUMBER", s, s.parse::<f64>().unwrap()),
+            TokenType::NUMBER(s) => write!(f, "{} {} {:?}", "NUMBER", s, s),
             TokenType::IDENTIFIER(s) => write!(f, "{} {} null", "IDENTIFIER", s),
             TokenType::AND => write!(f, "{}", "AND and null"),
             TokenType::CLASS => write!(f, "{}", "CLASS class null"),
@@ -263,7 +263,8 @@ impl<'e> Iterator for Lexer<'e>
                     {
                         capture.push_str(&self.iterator.next()?.to_string());
                     }
-                    return Some(Ok(TokenType::NUMBER(capture.clone())));
+                    let n = capture.parse::<f64>().unwrap();
+                    return Some(Ok(TokenType::NUMBER(n)));
                 }
                 TokenKind::Identifier => {
                     let mut capture = c.to_string();
