@@ -70,7 +70,13 @@ impl fmt::Display for TokenType {
             TokenType::GREATEREQUAL => write!(f, "{}", "GREATER_EQUAL >= null"),
             TokenType::SLASH => write!(f, "{}", "SLASH / null"),
             TokenType::STRING(s) => write!(f, "{} \"{}\" {}", "STRING", s, s),
-            TokenType::NUMBER(s) => write!(f, "{} {} {:?}", "NUMBER", s, s),
+            TokenType::NUMBER(s) => {
+                if s.fract() == 0.0 {
+                    write!(f, "{} {} {}", "NUMBER", s, s)
+                } else {
+                    write!(f, "{} {:?} {}", "NUMBER", s, s)
+                }
+            }
             TokenType::IDENTIFIER(s) => write!(f, "{} {} null", "IDENTIFIER", s),
             TokenType::AND => write!(f, "{}", "AND and null"),
             TokenType::CLASS => write!(f, "{}", "CLASS class null"),
@@ -114,15 +120,13 @@ impl fmt::Display for Line {
 }
 
 #[derive(Debug, Clone)]
-pub struct Lexer<'e>
-{
+pub struct Lexer<'e> {
     iterator: Peekable<Chars<'e>>,
     line: Line,
     reserved_words: HashMap<String, TokenType>,
 }
 
-impl<'e> Lexer<'e>
-{
+impl<'e> Lexer<'e> {
     pub fn new(input: &'e str) -> Self {
         Self {
             iterator: input.chars().into_iter().peekable(),
@@ -161,8 +165,7 @@ enum TokenKind {
     Identifier,
 }
 
-impl<'e> Iterator for Lexer<'e>
-{
+impl<'e> Iterator for Lexer<'e> {
     type Item = Result<TokenType, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -181,22 +184,10 @@ impl<'e> Iterator for Lexer<'e>
                 '+' => TokenKind::Single(TokenType::PLUS),
                 ';' => TokenKind::Single(TokenType::SEMICOLON),
                 '*' => TokenKind::Single(TokenType::STAR),
-                '=' => TokenKind::Double(
-                    TokenType::EQUAL,
-                    TokenType::EQUALEQUAL,
-                ),
-                '!' => TokenKind::Double(
-                    TokenType::BANG,
-                    TokenType::BANGEQUAL,
-                ),
-                '<' => TokenKind::Double(
-                    TokenType::LESS,
-                    TokenType::LESSEQUAL,
-                ),
-                '>' => TokenKind::Double(
-                    TokenType::GREATER,
-                    TokenType::GREATEREQUAL,
-                ),
+                '=' => TokenKind::Double(TokenType::EQUAL, TokenType::EQUALEQUAL),
+                '!' => TokenKind::Double(TokenType::BANG, TokenType::BANGEQUAL),
+                '<' => TokenKind::Double(TokenType::LESS, TokenType::LESSEQUAL),
+                '>' => TokenKind::Double(TokenType::GREATER, TokenType::GREATEREQUAL),
                 '/' => TokenKind::Comment(TokenType::SLASH),
                 '\n' => TokenKind::NewLine,
                 '"' => TokenKind::String,
