@@ -3,7 +3,7 @@ use std::iter::Peekable;
 
 use anyhow::Error;
 
-use crate::lex::{Lexer, TokenType};
+use crate::lex::{Lexer, Token, TokenType};
 
 #[derive(Debug)]
 pub enum AstNode {
@@ -51,7 +51,6 @@ impl fmt::Display for Grouping {
     }
 }
 
-
 pub struct Parser<'e> {
     input: &'e str,
     lexer: Peekable<Lexer<'e>>,
@@ -66,38 +65,47 @@ impl<'e> Parser<'e> {
     }
 
     pub fn parse(&mut self) -> Result<AstNode, Error> {
-        let c = self.lexer.next();
+        let token = match self.lexer.next() {
+            Some(Ok(tt)) => tt,
+            None => return Err(anyhow::anyhow!("Unexpected EOF")),
+            Some(Err(e)) => return Err(e),
+        };
 
         loop {
-            match c {
-                Some(t) => match t {
-                    Ok(tt) => match tt {
-                        TokenType::STRING(s) => {
-                            return Ok(AstNode::Literal(LiteralValue::String(s.to_string())))
-                        }
-                        TokenType::NUMBER(n) => {
-                            return Ok(AstNode::Literal(LiteralValue::Number(n)))
-                        }
-                        TokenType::TRUE => {
-                            return Ok(AstNode::Literal(LiteralValue::Bool(true)))
-                        }
-                        TokenType::FALSE => {
-                            return Ok(AstNode::Literal(LiteralValue::Bool(false)))
-                        }
-                        TokenType::NIL => return Ok(AstNode::Literal(LiteralValue::Nil)),
-                        TokenType::LeftParen => {
-                            let expression = self.parse()?;
-                            let _ = self.lexer.next();
-                            return Ok(AstNode::Grouping(Grouping {
-                                expression: Box::new(expression),
-                            }));
-                        }
-                        _ => todo!(),
-                    },
-                    Err(_e) => todo!(),
-                },
-                None => todo!(),
+            let t = match token {
+                Token {
+                    kind: TokenType::STRING,
+                    origin,
+                } => AstNode::Literal(LiteralValue::String(origin.to_string())),
+                Token {
+                    kind: TokenType::NUMBER(n),
+                    ..
+                } => AstNode::Literal(LiteralValue::Number(n)),
+                Token {
+                    kind: TokenType::TRUE,
+                    ..
+                } => AstNode::Literal(LiteralValue::Bool(true)),
+                Token {
+                    kind: TokenType::FALSE,
+                    ..
+                } => AstNode::Literal(LiteralValue::Bool(false)),
+                Token {
+                    kind: TokenType::NIL,
+                    ..
+                } => AstNode::Literal(LiteralValue::Nil),
+                Token {
+                    kind: TokenType::LeftParen,
+                    ..
+                } => {
+                    let expression = self.parse()?;
+                    AstNode::Grouping(Grouping {
+                        expression: Box::new(expression),
+                    })
+                }
+                _ => return Err(anyhow::anyhow!("Unexpected token {}", token)),
             };
+
+            return Ok(t);
         }
     }
 }

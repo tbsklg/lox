@@ -24,10 +24,10 @@ pub enum TokenType {
     LESS,
     GREATEREQUAL,
     GREATER,
-    STRING(String),
+    STRING,
     SLASH,
     NUMBER(f64),
-    IDENTIFIER(String),
+    IDENTIFIER,
     AND,
     CLASS,
     ELSE,
@@ -46,9 +46,15 @@ pub enum TokenType {
     WHILE,
 }
 
-impl fmt::Display for TokenType {
+pub struct Token {
+    pub origin: String,
+    pub kind: TokenType,
+}
+
+impl fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
+        let origin = self.origin.clone();
+        match self.kind {
             TokenType::EOF => write!(f, "{}", "EOF null"),
             TokenType::LeftParen => write!(f, "{}", "LEFT_PAREN ( null"),
             TokenType::RightParen => write!(f, "{}", "RIGHT_PAREN ) null"),
@@ -69,15 +75,16 @@ impl fmt::Display for TokenType {
             TokenType::GREATER => write!(f, "{}", "GREATER > null"),
             TokenType::GREATEREQUAL => write!(f, "{}", "GREATER_EQUAL >= null"),
             TokenType::SLASH => write!(f, "{}", "SLASH / null"),
-            TokenType::STRING(s) => write!(f, "{} \"{}\" {}", "STRING", s, s),
-            TokenType::NUMBER(s) => {
-                if s.fract() == 0.0 {
-                    write!(f, "{} {} {:?}", "NUMBER", s, s)
+            TokenType::STRING => write!(f, "String {origin} {}", origin),
+            TokenType::NUMBER(n) => {
+                if n == n.trunc() {
+                    // tests require that integers are printed as N.0
+                    write!(f, "NUMBER {origin} {n}.0")
                 } else {
-                    write!(f, "{} {:?} {:?}", "NUMBER", s, s)
+                    write!(f, "NUMBER {n} {n}")
                 }
             }
-            TokenType::IDENTIFIER(s) => write!(f, "{} {} null", "IDENTIFIER", s),
+            TokenType::IDENTIFIER => write!(f, "{} {} null", "IDENTIFIER", origin),
             TokenType::AND => write!(f, "{}", "AND and null"),
             TokenType::CLASS => write!(f, "{}", "CLASS class null"),
             TokenType::ELSE => write!(f, "{}", "ELSE else null"),
@@ -120,14 +127,14 @@ impl fmt::Display for Line {
 }
 
 #[derive(Debug, Clone)]
-pub struct Lexer<'e> {
-    iterator: Peekable<Chars<'e>>,
+pub struct Lexer<'de> {
+    iterator: Peekable<Chars<'de>>,
     line: Line,
     reserved_words: HashMap<String, TokenType>,
 }
 
-impl<'e> Lexer<'e> {
-    pub fn new(input: &'e str) -> Self {
+impl<'de> Lexer<'de> {
+    pub fn new(input: &'de str) -> Self {
         Self {
             iterator: input.chars().into_iter().peekable(),
             line: Line::start_from(1),
@@ -154,7 +161,7 @@ impl<'e> Lexer<'e> {
 }
 
 enum TokenKind {
-    Single(TokenType),
+    Single(Token),
     Double(TokenType, TokenType),
     Error(String),
     Comment(TokenType),
@@ -165,25 +172,24 @@ enum TokenKind {
     Identifier,
 }
 
-impl<'e> Iterator for Lexer<'e> {
-    type Item = Result<TokenType, Error>;
+impl<'de> Iterator for Lexer<'de> {
+    type Item = Result<Token, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             let c = self.iterator.next()?;
-            let p = self.iterator.peek();
 
             let kind = match c {
-                '(' => TokenKind::Single(TokenType::LeftParen),
-                ')' => TokenKind::Single(TokenType::RightParen),
-                '}' => TokenKind::Single(TokenType::RightBrace),
-                '{' => TokenKind::Single(TokenType::LeftBrace),
-                ',' => TokenKind::Single(TokenType::COMMA),
-                '.' => TokenKind::Single(TokenType::DOT),
-                '-' => TokenKind::Single(TokenType::MINUS),
-                '+' => TokenKind::Single(TokenType::PLUS),
-                ';' => TokenKind::Single(TokenType::SEMICOLON),
-                '*' => TokenKind::Single(TokenType::STAR),
+                '(' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::LeftParen}),
+                ')' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::RightParen}),
+                '}' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::RightBrace}),
+                '{' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::LeftBrace}),
+                ',' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::COMMA}),
+                '.' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::DOT}),
+                '-' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::MINUS}),
+                '+' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::PLUS}),
+                ';' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::SEMICOLON}),
+                '*' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::STAR}),
                 '=' => TokenKind::Double(TokenType::EQUAL, TokenType::EQUALEQUAL),
                 '!' => TokenKind::Double(TokenType::BANG, TokenType::BANGEQUAL),
                 '<' => TokenKind::Double(TokenType::LESS, TokenType::LESSEQUAL),
@@ -206,24 +212,25 @@ impl<'e> Iterator for Lexer<'e> {
                 }
             };
 
+            let p = self.iterator.peek().cloned();
             match kind {
                 TokenKind::Single(token) => return Some(Ok(token)),
                 TokenKind::Double(token1, token2) => {
-                    if p == Some(&'=') {
+                    if p == Some('=') {
                         self.iterator.next();
-                        return Some(Ok(token2));
+                        return Some(Ok(Token{origin: format!("{}{}", c.to_string(), p.unwrap()), kind: token2}));
                     } else {
-                        return Some(Ok(token1));
+                        return Some(Ok(Token{origin: c.to_string(), kind: token1}));
                     }
                 }
                 TokenKind::Comment(token) => {
-                    if p == Some(&'/') {
+                    if p == Some('/') {
                         while self.iterator.peek() != None && self.iterator.peek() != Some(&'\n') {
                             self.iterator.next();
                         }
                         continue;
                     }
-                    return Some(Ok(token));
+                    return Some(Ok(Token{origin: c.to_string(), kind: token}));
                 }
                 TokenKind::NewLine => {
                     self.line.increment();
@@ -243,7 +250,7 @@ impl<'e> Iterator for Lexer<'e> {
                     }
                     self.iterator.next();
 
-                    return Some(Ok(TokenType::STRING(capture.clone())));
+                    return Some(Ok(Token{origin: capture.clone(), kind: TokenType::STRING}));
                 }
                 TokenKind::Skip => continue,
                 TokenKind::Number => {
@@ -255,7 +262,7 @@ impl<'e> Iterator for Lexer<'e> {
                         capture.push_str(&self.iterator.next()?.to_string());
                     }
                     let n = capture.parse::<f64>().unwrap();
-                    return Some(Ok(TokenType::NUMBER(n)));
+                    return Some(Ok(Token{origin: capture, kind: TokenType::NUMBER(n)}));
                 }
                 TokenKind::Identifier => {
                     let mut capture = c.to_string();
@@ -270,9 +277,9 @@ impl<'e> Iterator for Lexer<'e> {
                         .reserved_words
                         .get(&capture)
                         .cloned()
-                        .unwrap_or_else(|| TokenType::IDENTIFIER(capture.clone()));
+                        .unwrap_or_else(|| TokenType::IDENTIFIER);
 
-                    return Some(Ok(token_type));
+                    return Some(Ok(Token{origin: capture, kind: token_type}));
                 }
                 TokenKind::Error(e) => return Some(Err(Error::msg(e))),
             }
