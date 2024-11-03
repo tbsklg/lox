@@ -75,7 +75,7 @@ impl fmt::Display for Token {
             TokenType::GREATER => write!(f, "{}", "GREATER > null"),
             TokenType::GREATEREQUAL => write!(f, "{}", "GREATER_EQUAL >= null"),
             TokenType::SLASH => write!(f, "{}", "SLASH / null"),
-            TokenType::STRING => write!(f, "String {origin} {}", origin),
+            TokenType::STRING => write!(f, "STRING {origin} {}", origin.trim_matches('"')),
             TokenType::NUMBER(n) => {
                 if n == n.trunc() {
                     // tests require that integers are printed as N.0
@@ -237,7 +237,7 @@ impl<'de> Iterator for Lexer<'de> {
                     continue;
                 }
                 TokenKind::String => {
-                    let mut capture = "".to_string();
+                    let mut capture = c.to_string();
                     while self.iterator.peek() != Some(&'"') {
                         if self.iterator.peek() == None {
                             return Some(Err(Error::msg(format!(
@@ -248,7 +248,7 @@ impl<'de> Iterator for Lexer<'de> {
 
                         capture.push_str(&self.iterator.next()?.to_string());
                     }
-                    self.iterator.next();
+                    capture.push_str(&self.iterator.next()?.to_string());
 
                     return Some(Ok(Token{origin: capture.clone(), kind: TokenType::STRING}));
                 }
