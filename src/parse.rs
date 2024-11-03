@@ -31,7 +31,7 @@ pub enum LiteralValue {
 impl fmt::Display for LiteralValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let literal = match self {
-            LiteralValue::String(s) => &s.to_string(),
+            LiteralValue::String(s) => s.trim_matches('"'),
             LiteralValue::Bool(s) => &s.to_string(),
             LiteralValue::Nil => &"nil".to_string(),
             LiteralValue::Number(n) => &format!("{:?}", n),
