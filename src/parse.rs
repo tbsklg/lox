@@ -98,6 +98,16 @@ impl<'e> Parser<'e> {
                     ..
                 } => {
                     let expression = self.parse()?;
+                    let t = self.lexer.next();
+
+                    match t {
+                        Some(Ok(Token {
+                            kind: TokenType::RightParen,
+                            ..
+                        })) => (),
+                        _ => return Err(anyhow::anyhow!("Expected ')'")),
+                    }
+
                     AstNode::Grouping(Grouping {
                         expression: Box::new(expression),
                     })
@@ -109,3 +119,5 @@ impl<'e> Parser<'e> {
         }
     }
 }
+
+

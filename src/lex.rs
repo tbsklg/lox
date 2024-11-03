@@ -3,7 +3,7 @@ use std::{collections::HashMap, iter::Peekable, str::Chars};
 
 use anyhow::Error;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
     LeftParen,
     RightParen,
