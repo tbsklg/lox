@@ -62,8 +62,8 @@ pub enum Operator {
 impl fmt::Display for Operator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
-            Operator::Minus(e) => write!(f, "-{}", e),
-            Operator::Bang(e) => write!(f, "!{}", e),
+            Operator::Minus(e) => write!(f, "(- {})", e),
+            Operator::Bang(e) => write!(f, "(! {})", e),
         }
     }
 }
