@@ -9,6 +9,7 @@ use crate::lex::{Lexer, Token, TokenType};
 pub enum AstNode {
     Literal(LiteralValue),
     Grouping(Grouping),
+    Unary(Operator),
 }
 
 impl fmt::Display for AstNode {
@@ -16,6 +17,7 @@ impl fmt::Display for AstNode {
         match self {
             AstNode::Literal(l) => write!(f, "{}", l),
             AstNode::Grouping(g) => write!(f, "{}", g),
+            AstNode::Unary(o) => write!(f, "{}", o),
         }
     }
 }
@@ -48,6 +50,21 @@ pub struct Grouping {
 impl fmt::Display for Grouping {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "(group {})", self.expression)
+    }
+}
+
+#[derive(Debug)]
+pub enum Operator {
+    Minus(Box<AstNode>),
+    Bang(Box<AstNode>),
+}
+
+impl fmt::Display for Operator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            Operator::Minus(e) => write!(f, "-{}", e),
+            Operator::Bang(e) => write!(f, "!{}", e),
+        }
     }
 }
 
@@ -112,6 +129,23 @@ impl<'e> Parser<'e> {
                         expression: Box::new(expression),
                     })
                 }
+                Token {
+                    kind: TokenType::BANG,
+                    ..
+                } => {
+                    let expression = self.parse()?;
+
+                    AstNode::Unary(Operator::Bang(Box::new(expression)))
+                },
+                Token {
+                    kind: TokenType::MINUS,
+                    ..
+                } => {
+                    let expression = self.parse()?;
+
+                    AstNode::Unary(Operator::Minus(Box::new(expression)))
+                    
+                },
                 _ => return Err(anyhow::anyhow!("Unexpected token {}", token)),
             };
 
