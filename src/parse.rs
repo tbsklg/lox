@@ -9,7 +9,7 @@ use crate::lex::{Lexer, Token, TokenType};
 pub enum AstNode {
     Literal(LiteralValue),
     Grouping(Grouping),
-    Unary(Operator),
+    Unary(Operator, Box<AstNode>),
 }
 
 impl fmt::Display for AstNode {
@@ -17,7 +17,7 @@ impl fmt::Display for AstNode {
         match self {
             AstNode::Literal(l) => write!(f, "{}", l),
             AstNode::Grouping(g) => write!(f, "{}", g),
-            AstNode::Unary(o) => write!(f, "{}", o),
+            AstNode::Unary(u, a) => write!(f, "{} {}", u, a),
         }
     }
 }
@@ -55,15 +55,15 @@ impl fmt::Display for Grouping {
 
 #[derive(Debug)]
 pub enum Operator {
-    Minus(Box<AstNode>),
-    Bang(Box<AstNode>),
+    Minus,
+    Bang,
 }
 
 impl fmt::Display for Operator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
-            Operator::Minus(e) => write!(f, "(- {})", e),
-            Operator::Bang(e) => write!(f, "(! {})", e),
+            Operator::Minus => write!(f, "-"),
+            Operator::Bang => write!(f, "!"),
         }
     }
 }
@@ -115,7 +115,7 @@ impl<'e> Parser<'e> {
                     ..
                 } => {
                     let expression = self.parse()?;
-                    let t = self.lexer.next();
+                    let t = self.lexer.peek();
 
                     match t {
                         Some(Ok(Token {
@@ -132,26 +132,38 @@ impl<'e> Parser<'e> {
                 Token {
                     kind: TokenType::BANG,
                     ..
-                } => {
-                    let expression = self.parse()?;
-
-                    AstNode::Unary(Operator::Bang(Box::new(expression)))
-                },
+                } => self.parse_unary(Operator::Bang),
                 Token {
                     kind: TokenType::MINUS,
                     ..
-                } => {
-                    let expression = self.parse()?;
-
-                    AstNode::Unary(Operator::Minus(Box::new(expression)))
-                    
-                },
+                } => self.parse_unary(Operator::Minus),
                 _ => return Err(anyhow::anyhow!("Unexpected token {}", token)),
             };
 
             return Ok(t);
         }
     }
+
+    fn parse_unary(&mut self, operator: Operator) -> AstNode {
+        let n = match self.lexer.peek() {
+            Some(Ok(tt)) => tt,
+            _ => todo!(),
+        };
+
+        match n.kind {
+            TokenType::NUMBER(n) => AstNode::Unary(
+                operator,
+                Box::new(AstNode::Literal(LiteralValue::Number(n))),
+            ),
+            TokenType::BANG => {
+                self.lexer.next();
+                self.parse_unary(Operator::Bang)
+            }
+            TokenType::MINUS => {
+                self.lexer.next();
+                self.parse_unary(Operator::Minus)
+            }
+            _ => todo!(),
+        }
+    }
 }
-
-
