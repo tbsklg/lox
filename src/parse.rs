@@ -49,7 +49,7 @@ pub struct Grouping {
 
 impl fmt::Display for Grouping {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(group {})", self.expression)
+        write!(f, "( {} )", self.expression)
     }
 }
 
