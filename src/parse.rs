@@ -112,20 +112,20 @@ impl<'e> Parser<'e> {
 
     pub fn expression(&mut self) -> Result<AstNode, ()> {
         let mut expr = self.term()?;
-
-        match self.peek() {
-            Some(token) => {
-                let operator = match token.kind {
-                    TokenType::SLASH => Operator::Div,
-                    TokenType::STAR => Operator::Multi,
+        
+        while matches!(self.peek().unwrap_or(&Token { kind: TokenType::NIL, origin: "".to_string() }).kind, TokenType::PLUS | TokenType::MINUS) {
+            let operator = match self.peek() {
+                Some(token) => match token.kind {
+                    TokenType::PLUS => Operator::Plus,
+                    TokenType::MINUS => Operator::Minus,
                     _ => return Ok(expr),
-                };
-                self.lexer.next();
-                
-                let right = self.term()?;
-                expr = AstNode::Binary(Box::new(expr), operator, Box::new(right));
-            },
-            None => return Ok(expr),
+                },
+                None => return Ok(expr),
+            };
+            self.lexer.next();
+            
+            let right = self.term()?;
+            expr = AstNode::Binary(Box::new(expr), operator, Box::new(right));
         }
 
         Ok(expr)
@@ -133,20 +133,20 @@ impl<'e> Parser<'e> {
 
     fn term(&mut self) -> Result<AstNode, ()> {
         let mut expr = self.factor()?;
-
-        match self.peek() {
-            Some(token) => {
-                let operator = match token.kind {
-                    TokenType::MINUS => Operator::Minus,
-                    TokenType::PLUS => Operator::Plus,
+            
+        while matches!(self.peek().unwrap_or(&Token { kind: TokenType::NIL, origin: "".to_string() }).kind, TokenType::SLASH | TokenType::STAR) {
+            let operator = match self.peek() {
+                Some(token) => match token.kind {
+                    TokenType::SLASH => Operator::Div,
+                    TokenType::STAR => Operator::Multi,
                     _ => return Ok(expr),
-                };
-                self.lexer.next();
-                
-                let right = self.factor()?;
-                expr = AstNode::Binary(Box::new(expr), operator, Box::new(right));
-            },
-            None => return Ok(expr),
+                },
+                None => return Ok(expr),
+            };
+            self.lexer.next();
+            
+            let right = self.factor()?;
+            expr = AstNode::Binary(Box::new(expr), operator, Box::new(right));
         }
 
         Ok(expr)
