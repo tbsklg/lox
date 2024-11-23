@@ -75,7 +75,7 @@ pub enum Operator {
 impl fmt::Display for Operator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
-            Operator::Minus => write!(f, "-"),
+            Operator::Minus => write!(f, "- "),
             Operator::Bang => write!(f, "!"),
             Operator::Plus => write!(f, "+"),
             Operator::Multi => write!(f, "*"),
