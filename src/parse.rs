@@ -112,7 +112,6 @@ impl<'e> Parser<'e> {
 
     pub fn expression(&mut self) -> Result<AstNode, ()> {
         let mut expr = self.term()?;
-        println!("expression {:?}", expr);
 
         match self.peek() {
             Some(token) => {
@@ -124,7 +123,6 @@ impl<'e> Parser<'e> {
                 self.lexer.next();
                 
                 let right = self.term()?;
-                println!("expression {:?}", right);
                 expr = AstNode::Binary(Box::new(expr), operator, Box::new(right));
             },
             None => return Ok(expr),
@@ -219,7 +217,6 @@ impl<'e> Parser<'e> {
                 };
                 self.lexer.next();
                 
-                println!("primary {:?}", expr);
                 return Ok(expr)
             },
             None => Ok(AstNode::Eof),
