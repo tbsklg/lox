@@ -80,12 +80,12 @@ impl fmt::Display for Operator {
             Operator::Plus => write!(f, "+"),
             Operator::Multi => write!(f, "*"),
             Operator::Div => write!(f, "/"),
-            Operator::BangEqual => write!(f, "/"),
-            Operator::EqualEqual => write!(f, "/"),
-            Operator::Less => write!(f, "/"),
-            Operator::LessEqual => write!(f, "/"),
-            Operator::Greater => write!(f, "/"),
-            Operator::GreaterEqual => write!(f, "/"),
+            Operator::BangEqual => write!(f, "!"),
+            Operator::EqualEqual => write!(f, "!="),
+            Operator::Less => write!(f, "<"),
+            Operator::LessEqual => write!(f, "<="),
+            Operator::Greater => write!(f, ">"),
+            Operator::GreaterEqual => write!(f, ">="),
         }
     }
 }
@@ -104,23 +104,27 @@ impl<'e> Parser<'e> {
     }
 
     pub fn parse(&mut self) -> Result<AstNode, Error> {
-        match self.expression() {
-            Ok(ast) => Ok(ast),
+        match self.comparison() {
+            Ok(ast) => {
+                println!("ast: {:?}", ast);
+                Ok(ast)
+            }
             Err(_) => Err(anyhow!("Failed to parse")),
         }
     }
 
-    pub fn expression(&mut self) -> Result<AstNode, ()> {
+    pub fn comparison(&mut self) -> Result<AstNode, ()> {
         let mut expr = self.term()?;
         
-        while matches!(self.peek().unwrap_or(&Token { kind: TokenType::NIL, origin: "".to_string() }).kind, TokenType::PLUS | TokenType::MINUS) {
+        while matches!(self.peek().kind, TokenType::GREATER | TokenType::GREATEREQUAL | TokenType::LESS | TokenType::LESSEQUAL) {
             let operator = match self.peek() {
-                Some(token) => match token.kind {
-                    TokenType::PLUS => Operator::Plus,
-                    TokenType::MINUS => Operator::Minus,
+                token => match token.kind {
+                    TokenType::GREATER => Operator::Greater,
+                    TokenType::GREATEREQUAL => Operator::GreaterEqual,
+                    TokenType::LESS => Operator::Less,
+                    TokenType::LESSEQUAL => Operator::LessEqual,
                     _ => return Ok(expr),
                 },
-                None => return Ok(expr),
             };
             self.lexer.next();
             
@@ -134,14 +138,13 @@ impl<'e> Parser<'e> {
     fn term(&mut self) -> Result<AstNode, ()> {
         let mut expr = self.factor()?;
             
-        while matches!(self.peek().unwrap_or(&Token { kind: TokenType::NIL, origin: "".to_string() }).kind, TokenType::SLASH | TokenType::STAR) {
+        while matches!(self.peek().kind, TokenType::MINUS | TokenType::PLUS) {
             let operator = match self.peek() {
-                Some(token) => match token.kind {
-                    TokenType::SLASH => Operator::Div,
-                    TokenType::STAR => Operator::Multi,
+                token => match token.kind {
+                    TokenType::MINUS => Operator::Minus,
+                    TokenType::PLUS => Operator::Plus,
                     _ => return Ok(expr),
                 },
-                None => return Ok(expr),
             };
             self.lexer.next();
             
@@ -155,27 +158,26 @@ impl<'e> Parser<'e> {
     fn factor(&mut self) -> Result<AstNode, ()> {
         let mut expr = self.unary()?;
 
-        match self.peek() {
-            Some(token) => {
-                let operator = match token.kind {
+        while matches!(self.peek().kind, TokenType::SLASH | TokenType::STAR) {
+            let operator = match self.peek() {
+                token => match token.kind {
                     TokenType::SLASH => Operator::Div,
-                    TokenType::STAR=> Operator::Multi,
+                    TokenType::STAR => Operator::Multi,
                     _ => return Ok(expr),
-                };
-                self.lexer.next();
-                
-                let right = self.unary()?;
-                expr = AstNode::Binary(Box::new(expr), operator, Box::new(right));
-            },
-            None => return Ok(expr),
+                },
+            };
+            self.lexer.next();
+            
+            let right = self.unary()?;
+            expr = AstNode::Binary(Box::new(expr), operator, Box::new(right));
         }
-        
+
         Ok(expr)
     }
 
     fn unary(&mut self) -> Result<AstNode, ()> {
         match self.peek() {
-            Some(token) => {
+            token => {
                 let operator = match token.kind {
                     TokenType::BANG=> Operator::Bang,
                     TokenType::MINUS=> Operator::Minus,
@@ -186,13 +188,12 @@ impl<'e> Parser<'e> {
                 let right = self.unary()?;
                 return Ok(AstNode::Unary(operator, Box::new(right)));
             },
-            None => return self.primary(),
         }
     }
 
     fn primary(&mut self) -> Result<AstNode, ()> {
         match self.peek() {
-            Some(token) => {
+            token => {
                 let expr = match token.kind {
                     TokenType::FALSE => AstNode::Literal(LiteralValue::Bool(false)),
                     TokenType::TRUE => AstNode::Literal(LiteralValue::Bool(true)),
@@ -201,15 +202,14 @@ impl<'e> Parser<'e> {
                     TokenType::STRING => AstNode::Literal(LiteralValue::String(token.clone().origin)),
                     TokenType::LeftParen => {
                         self.lexer.next();
-                        let expr = self.expression()?;
+                        let expr = self.comparison()?;
                         match self.peek() {
-                            Some(token) => {
+                            token => {
                                 if token.kind == TokenType::RightParen {
                                     self.lexer.next();
                                     return Ok(AstNode::Grouping(Grouping { expression: Box::new(expr) }));
                                 }
                             },
-                            None => return Err(()),
                         }
                         return Err(());
                     }
@@ -219,14 +219,13 @@ impl<'e> Parser<'e> {
                 
                 return Ok(expr)
             },
-            None => Ok(AstNode::Eof),
         }
     }
 
-    pub fn peek(&mut self) -> Option<&Token> {
+    pub fn peek(&mut self) -> Token {
         match self.lexer.peek() {
-            Some(Ok(token)) => Some(&token),
-            _ => None
+            Some(Ok(token)) => token.clone(),
+            _ => Token { kind: TokenType::NIL, origin: "".to_string() },
         }
     }
 }
