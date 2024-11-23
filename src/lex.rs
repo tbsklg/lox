@@ -46,6 +46,7 @@ pub enum TokenType {
     WHILE,
 }
 
+#[derive(Debug, Clone)]
 pub struct Token {
     pub origin: String,
     pub kind: TokenType,

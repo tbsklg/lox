@@ -1,7 +1,7 @@
 use core::fmt;
 use std::iter::Peekable;
 
-use anyhow::Error;
+use anyhow::{anyhow, Error};
 
 use crate::lex::{Lexer, Token, TokenType};
 
@@ -10,14 +10,18 @@ pub enum AstNode {
     Literal(LiteralValue),
     Grouping(Grouping),
     Unary(Operator, Box<AstNode>),
+    Binary(Box<AstNode>, Operator, Box<AstNode>),
+    Eof,
 }
 
 impl fmt::Display for AstNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AstNode::Literal(l) => write!(f, "{}", l),
-            AstNode::Grouping(g) => write!(f, "{}", g),
-            AstNode::Unary(u, a) => write!(f, "{} {}", u, a),
+            AstNode::Literal(v) => write!(f, "{v}"),
+            AstNode::Grouping(v) => write!(f, "{v}"),
+            AstNode::Unary(o, v) => write!(f, "{o}{v}"),
+            AstNode::Binary(l, o, r) => write!(f, "({o} {l} {r})"),
+            AstNode::Eof => write!(f, ""),
         }
     }
 }
@@ -53,10 +57,19 @@ impl fmt::Display for Grouping {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Operator {
     Minus,
     Bang,
+    Plus,
+    Multi,
+    Div,
+    BangEqual,
+    EqualEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
 }
 
 impl fmt::Display for Operator {
@@ -64,6 +77,15 @@ impl fmt::Display for Operator {
         match &self {
             Operator::Minus => write!(f, "-"),
             Operator::Bang => write!(f, "!"),
+            Operator::Plus => write!(f, "+"),
+            Operator::Multi => write!(f, "*"),
+            Operator::Div => write!(f, "/"),
+            Operator::BangEqual => write!(f, "/"),
+            Operator::EqualEqual => write!(f, "/"),
+            Operator::Less => write!(f, "/"),
+            Operator::LessEqual => write!(f, "/"),
+            Operator::Greater => write!(f, "/"),
+            Operator::GreaterEqual => write!(f, "/"),
         }
     }
 }
@@ -82,88 +104,133 @@ impl<'e> Parser<'e> {
     }
 
     pub fn parse(&mut self) -> Result<AstNode, Error> {
-        let token = match self.lexer.next() {
-            Some(Ok(tt)) => tt,
-            None => return Err(anyhow::anyhow!("Unexpected EOF")),
-            Some(Err(e)) => return Err(e),
-        };
-
-        loop {
-            let t = match token {
-                Token {
-                    kind: TokenType::STRING,
-                    origin,
-                } => AstNode::Literal(LiteralValue::String(origin.to_string())),
-                Token {
-                    kind: TokenType::NUMBER(n),
-                    ..
-                } => AstNode::Literal(LiteralValue::Number(n)),
-                Token {
-                    kind: TokenType::TRUE,
-                    ..
-                } => AstNode::Literal(LiteralValue::Bool(true)),
-                Token {
-                    kind: TokenType::FALSE,
-                    ..
-                } => AstNode::Literal(LiteralValue::Bool(false)),
-                Token {
-                    kind: TokenType::NIL,
-                    ..
-                } => AstNode::Literal(LiteralValue::Nil),
-                Token {
-                    kind: TokenType::LeftParen,
-                    ..
-                } => {
-                    let expression = self.parse()?;
-                    let t = self.lexer.peek();
-
-                    match t {
-                        Some(Ok(Token {
-                            kind: TokenType::RightParen,
-                            ..
-                        })) => (),
-                        _ => return Err(anyhow::anyhow!("Expected ')'")),
-                    }
-
-                    AstNode::Grouping(Grouping {
-                        expression: Box::new(expression),
-                    })
-                }
-                Token {
-                    kind: TokenType::BANG,
-                    ..
-                } => self.parse_unary(Operator::Bang),
-                Token {
-                    kind: TokenType::MINUS,
-                    ..
-                } => self.parse_unary(Operator::Minus),
-                _ => return Err(anyhow::anyhow!("Unexpected token {}", token)),
-            };
-
-            return Ok(t);
+        match self.expression() {
+            Ok(ast) => Ok(ast),
+            Err(_) => Err(anyhow!("Failed to parse")),
         }
     }
 
-    fn parse_unary(&mut self, operator: Operator) -> AstNode {
-        let n = match self.lexer.peek() {
-            Some(Ok(tt)) => tt,
-            _ => todo!(),
-        };
+    pub fn expression(&mut self) -> Result<AstNode, ()> {
+        let mut expr = self.term()?;
+        println!("expression {:?}", expr);
 
-        match n.kind {
-            TokenType::NUMBER(n) => AstNode::Unary(
-                operator,
-                Box::new(AstNode::Literal(LiteralValue::Number(n))),
-            ),
-            TokenType::BANG => {
+        match self.peek() {
+            Some(token) => {
+                let operator = match token.kind {
+                    TokenType::SLASH => Operator::Div,
+                    TokenType::STAR => Operator::Multi,
+                    _ => return Ok(expr),
+                };
                 self.lexer.next();
-                self.parse_unary(Operator::Bang)
-            }
-            TokenType::MINUS => {
+                
+                let right = self.term()?;
+                println!("expression {:?}", right);
+                expr = AstNode::Binary(Box::new(expr), operator, Box::new(right));
+            },
+            None => return Ok(expr),
+        }
+
+        Ok(expr)
+    }
+
+    fn term(&mut self) -> Result<AstNode, ()> {
+        let mut expr = self.factor()?;
+
+        match self.peek() {
+            Some(token) => {
+                let operator = match token.kind {
+                    TokenType::MINUS => Operator::Minus,
+                    TokenType::PLUS => Operator::Plus,
+                    _ => return Ok(expr),
+                };
                 self.lexer.next();
-                self.parse_unary(Operator::Minus)
-            }
-            _ => todo!(),
+                
+                let right = self.factor()?;
+                expr = AstNode::Binary(Box::new(expr), operator, Box::new(right));
+            },
+            None => return Ok(expr),
+        }
+
+        Ok(expr)
+    }
+
+    fn factor(&mut self) -> Result<AstNode, ()> {
+        let mut expr = self.unary()?;
+
+        match self.peek() {
+            Some(token) => {
+                let operator = match token.kind {
+                    TokenType::SLASH => Operator::Div,
+                    TokenType::STAR=> Operator::Multi,
+                    _ => return Ok(expr),
+                };
+                self.lexer.next();
+                
+                let right = self.unary()?;
+                expr = AstNode::Binary(Box::new(expr), operator, Box::new(right));
+            },
+            None => return Ok(expr),
+        }
+        
+        Ok(expr)
+    }
+
+    fn unary(&mut self) -> Result<AstNode, ()> {
+        match self.peek() {
+            Some(token) => {
+                let operator = match token.kind {
+                    TokenType::BANG=> Operator::Bang,
+                    TokenType::MINUS=> Operator::Minus,
+                    _ => return self.primary(),
+                };
+                self.lexer.next();
+                
+                let right = self.unary()?;
+                return Ok(AstNode::Unary(operator, Box::new(right)));
+            },
+            None => return self.primary(),
+        }
+    }
+
+    fn primary(&mut self) -> Result<AstNode, ()> {
+        match self.peek() {
+            Some(token) => {
+                let expr = match token.kind {
+                    TokenType::FALSE => AstNode::Literal(LiteralValue::Bool(false)),
+                    TokenType::TRUE => AstNode::Literal(LiteralValue::Bool(true)),
+                    TokenType::NIL => AstNode::Literal(LiteralValue::Nil),
+                    TokenType::NUMBER(n) => AstNode::Literal(LiteralValue::Number(n)),
+                    TokenType::STRING => AstNode::Literal(LiteralValue::String(token.clone().origin)),
+                    TokenType::LeftParen => {
+                        self.lexer.next();
+                        let expr = self.expression()?;
+                        match self.peek() {
+                            Some(token) => {
+                                if token.kind == TokenType::RightParen {
+                                    self.lexer.next();
+                                    return Ok(AstNode::Grouping(Grouping { expression: Box::new(expr) }));
+                                }
+                            },
+                            None => return Err(()),
+                        }
+                        return Err(());
+                    }
+                    _ => AstNode::Eof,
+                };
+                self.lexer.next();
+                
+                println!("primary {:?}", expr);
+                return Ok(expr)
+            },
+            None => Ok(AstNode::Eof),
+        }
+    }
+
+    pub fn peek(&mut self) -> Option<&Token> {
+        match self.lexer.peek() {
+            Some(Ok(token)) => Some(&token),
+            _ => None
         }
     }
 }
+
