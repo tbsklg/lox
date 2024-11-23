@@ -105,10 +105,7 @@ impl<'e> Parser<'e> {
 
     pub fn parse(&mut self) -> Result<AstNode, Error> {
         match self.comparison() {
-            Ok(ast) => {
-                println!("ast: {:?}", ast);
-                Ok(ast)
-            }
+            Ok(ast) => Ok(ast),
             Err(_) => Err(anyhow!("Failed to parse")),
         }
     }
