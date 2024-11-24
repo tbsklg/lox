@@ -80,8 +80,8 @@ impl fmt::Display for Operator {
             Operator::Plus => write!(f, "+"),
             Operator::Multi => write!(f, "*"),
             Operator::Div => write!(f, "/"),
-            Operator::BangEqual => write!(f, "!"),
-            Operator::EqualEqual => write!(f, "!="),
+            Operator::BangEqual => write!(f, "!="),
+            Operator::EqualEqual => write!(f, "=="),
             Operator::Less => write!(f, "<"),
             Operator::LessEqual => write!(f, "<="),
             Operator::Greater => write!(f, ">"),
@@ -115,10 +115,11 @@ impl<'e> Parser<'e> {
 
         while matches!(
             self.peek().kind,
-            TokenType::GREATER | TokenType::GREATEREQUAL | TokenType::LESS | TokenType::LESSEQUAL
+            TokenType::GREATER | TokenType::GREATEREQUAL | TokenType::LESS | TokenType::LESSEQUAL | TokenType::EQUALEQUAL
         ) {
             let operator = match self.peek() {
                 token => match token.kind {
+                    TokenType::EQUALEQUAL => Operator::EqualEqual,
                     TokenType::GREATER => Operator::Greater,
                     TokenType::GREATEREQUAL => Operator::GreaterEqual,
                     TokenType::LESS => Operator::Less,
