@@ -115,11 +115,12 @@ impl<'e> Parser<'e> {
 
         while matches!(
             self.peek().kind,
-            TokenType::GREATER | TokenType::GREATEREQUAL | TokenType::LESS | TokenType::LESSEQUAL | TokenType::EQUALEQUAL
+            TokenType::GREATER | TokenType::GREATEREQUAL | TokenType::LESS | TokenType::LESSEQUAL | TokenType::EQUALEQUAL | TokenType::BANGEQUAL
         ) {
             let operator = match self.peek() {
                 token => match token.kind {
                     TokenType::EQUALEQUAL => Operator::EqualEqual,
+                    TokenType::BANGEQUAL => Operator::BangEqual,
                     TokenType::GREATER => Operator::Greater,
                     TokenType::GREATEREQUAL => Operator::GreaterEqual,
                     TokenType::LESS => Operator::Less,
