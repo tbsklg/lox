@@ -216,7 +216,7 @@ impl<'e> Parser<'e> {
                         }
                         return Err(anyhow!("[line {}] Expect ')' after expression", token.line));
                     }
-                    _ => AstNode::Eof,
+                    _ => return Err(anyhow!("")),
                 };
                 self.lexer.next();
 
