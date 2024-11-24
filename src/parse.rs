@@ -3,7 +3,7 @@ use std::iter::Peekable;
 
 use anyhow::{anyhow, Error};
 
-use crate::lex::{Lexer, Token, TokenType};
+use crate::lex::{Lexer, Line, Token, TokenType};
 
 #[derive(Debug)]
 pub enum AstNode {
@@ -104,13 +104,10 @@ impl<'e> Parser<'e> {
     }
 
     pub fn parse(&mut self) -> Result<AstNode, Error> {
-        match self.comparison() {
-            Ok(ast) => Ok(ast),
-            Err(_) => Err(anyhow!("Failed to parse")),
-        }
+        self.comparison()
     }
 
-    pub fn comparison(&mut self) -> Result<AstNode, ()> {
+    pub fn comparison(&mut self) -> Result<AstNode, Error> {
         let mut expr = self.term()?;
 
         while matches!(
@@ -137,7 +134,7 @@ impl<'e> Parser<'e> {
         Ok(expr)
     }
 
-    fn term(&mut self) -> Result<AstNode, ()> {
+    fn term(&mut self) -> Result<AstNode, Error> {
         let mut expr = self.factor()?;
 
         while matches!(self.peek().kind, TokenType::MINUS | TokenType::PLUS) {
@@ -157,7 +154,7 @@ impl<'e> Parser<'e> {
         Ok(expr)
     }
 
-    fn factor(&mut self) -> Result<AstNode, ()> {
+    fn factor(&mut self) -> Result<AstNode, Error> {
         let mut expr = self.unary()?;
 
         while matches!(self.peek().kind, TokenType::SLASH | TokenType::STAR) {
@@ -177,7 +174,7 @@ impl<'e> Parser<'e> {
         Ok(expr)
     }
 
-    fn unary(&mut self) -> Result<AstNode, ()> {
+    fn unary(&mut self) -> Result<AstNode, Error> {
         match self.peek() {
             token => {
                 let operator = match token.kind {
@@ -193,7 +190,7 @@ impl<'e> Parser<'e> {
         }
     }
 
-    fn primary(&mut self) -> Result<AstNode, ()> {
+    fn primary(&mut self) -> Result<AstNode, Error> {
         match self.peek() {
             token => {
                 let expr = match token.kind {
@@ -217,7 +214,7 @@ impl<'e> Parser<'e> {
                                 }
                             }
                         }
-                        return Err(());
+                        return Err(anyhow!("[line {}] Expect ')' after expression", token.line));
                     }
                     _ => AstNode::Eof,
                 };
@@ -234,6 +231,7 @@ impl<'e> Parser<'e> {
             _ => Token {
                 kind: TokenType::NIL,
                 origin: "".to_string(),
+                line: 0,
             },
         }
     }

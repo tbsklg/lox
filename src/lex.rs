@@ -50,6 +50,7 @@ pub enum TokenType {
 pub struct Token {
     pub origin: String,
     pub kind: TokenType,
+    pub line: u32,
 }
 
 impl fmt::Display for Token {
@@ -106,9 +107,9 @@ impl fmt::Display for Token {
     }
 }
 
-#[derive(Debug, Clone)]
-struct Line {
-    line: u32,
+#[derive(Debug, Clone, Copy)]
+pub struct Line {
+    pub line: u32,
 }
 
 impl Line {
@@ -179,18 +180,19 @@ impl<'de> Iterator for Lexer<'de> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             let c = self.iterator.next()?;
+            let l = self.line.line;
 
             let kind = match c {
-                '(' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::LeftParen}),
-                ')' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::RightParen}),
-                '}' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::RightBrace}),
-                '{' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::LeftBrace}),
-                ',' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::COMMA}),
-                '.' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::DOT}),
-                '-' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::MINUS}),
-                '+' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::PLUS}),
-                ';' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::SEMICOLON}),
-                '*' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::STAR}),
+                '(' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::LeftParen, line: l}),
+                ')' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::RightParen, line: l}),
+                '}' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::RightBrace, line: l}),
+                '{' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::LeftBrace, line: l}),
+                ',' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::COMMA, line: l}),
+                '.' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::DOT, line: l}),
+                '-' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::MINUS, line: l}),
+                '+' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::PLUS, line: l}),
+                ';' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::SEMICOLON, line: l}),
+                '*' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::STAR, line: l}),
                 '=' => TokenKind::Double(TokenType::EQUAL, TokenType::EQUALEQUAL),
                 '!' => TokenKind::Double(TokenType::BANG, TokenType::BANGEQUAL),
                 '<' => TokenKind::Double(TokenType::LESS, TokenType::LESSEQUAL),
@@ -219,9 +221,9 @@ impl<'de> Iterator for Lexer<'de> {
                 TokenKind::Double(token1, token2) => {
                     if p == Some('=') {
                         self.iterator.next();
-                        return Some(Ok(Token{origin: format!("{}{}", c.to_string(), p.unwrap()), kind: token2}));
+                        return Some(Ok(Token{origin: format!("{}{}", c.to_string(), p.unwrap()), kind: token2, line: l}));
                     } else {
-                        return Some(Ok(Token{origin: c.to_string(), kind: token1}));
+                        return Some(Ok(Token{origin: c.to_string(), kind: token1, line: l}));
                     }
                 }
                 TokenKind::Comment(token) => {
@@ -231,7 +233,7 @@ impl<'de> Iterator for Lexer<'de> {
                         }
                         continue;
                     }
-                    return Some(Ok(Token{origin: c.to_string(), kind: token}));
+                    return Some(Ok(Token{origin: c.to_string(), kind: token, line: l}));
                 }
                 TokenKind::NewLine => {
                     self.line.increment();
@@ -251,7 +253,7 @@ impl<'de> Iterator for Lexer<'de> {
                     }
                     capture.push_str(&self.iterator.next()?.to_string());
 
-                    return Some(Ok(Token{origin: capture.clone(), kind: TokenType::STRING}));
+                    return Some(Ok(Token{origin: capture.clone(), kind: TokenType::STRING, line: l}));
                 }
                 TokenKind::Skip => continue,
                 TokenKind::Number => {
@@ -263,7 +265,7 @@ impl<'de> Iterator for Lexer<'de> {
                         capture.push_str(&self.iterator.next()?.to_string());
                     }
                     let n = capture.parse::<f64>().unwrap();
-                    return Some(Ok(Token{origin: capture, kind: TokenType::NUMBER(n)}));
+                    return Some(Ok(Token{origin: capture, kind: TokenType::NUMBER(n), line: l}));
                 }
                 TokenKind::Identifier => {
                     let mut capture = c.to_string();
@@ -280,7 +282,7 @@ impl<'de> Iterator for Lexer<'de> {
                         .cloned()
                         .unwrap_or_else(|| TokenType::IDENTIFIER);
 
-                    return Some(Ok(Token{origin: capture, kind: token_type}));
+                    return Some(Ok(Token{origin: capture, kind: token_type, line: l}));
                 }
                 TokenKind::Error(e) => return Some(Err(Error::msg(e))),
             }
