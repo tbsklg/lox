@@ -91,14 +91,12 @@ impl fmt::Display for Operator {
 }
 
 pub struct Parser<'e> {
-    input: &'e str,
     lexer: Peekable<Lexer<'e>>,
 }
 
 impl<'e> Parser<'e> {
     pub fn new(input: &'e str) -> Self {
         Self {
-            input,
             lexer: Lexer::new(input).peekable(),
         }
     }

@@ -45,6 +45,27 @@ fn main() {
                 }
             }
         }
+        "evaluate" => {
+            let ast = parse::Parser::new(&file_contents).parse();
+
+            match ast {
+                Ok(ast) => {
+                    let result = eval::Evaluator::new(ast).evaluate();
+
+                    match result {
+                        Ok(result) => println!("{}", result),
+                        Err(e) => {
+                            eprintln!("{}", e);
+                            exit_code = 65;
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
+                    exit_code = 65;
+                }
+            }
+        }
         _ => {
             eprintln!("Unknown command: {}", command);
             return;
