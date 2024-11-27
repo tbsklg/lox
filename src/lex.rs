@@ -183,16 +183,56 @@ impl<'de> Iterator for Lexer<'de> {
             let l = self.line.line;
 
             let kind = match c {
-                '(' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::LeftParen, line: l}),
-                ')' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::RightParen, line: l}),
-                '}' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::RightBrace, line: l}),
-                '{' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::LeftBrace, line: l}),
-                ',' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::COMMA, line: l}),
-                '.' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::DOT, line: l}),
-                '-' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::MINUS, line: l}),
-                '+' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::PLUS, line: l}),
-                ';' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::SEMICOLON, line: l}),
-                '*' => TokenKind::Single(Token {origin: c.to_string(), kind: TokenType::STAR, line: l}),
+                '(' => TokenKind::Single(Token {
+                    origin: c.to_string(),
+                    kind: TokenType::LeftParen,
+                    line: l,
+                }),
+                ')' => TokenKind::Single(Token {
+                    origin: c.to_string(),
+                    kind: TokenType::RightParen,
+                    line: l,
+                }),
+                '}' => TokenKind::Single(Token {
+                    origin: c.to_string(),
+                    kind: TokenType::RightBrace,
+                    line: l,
+                }),
+                '{' => TokenKind::Single(Token {
+                    origin: c.to_string(),
+                    kind: TokenType::LeftBrace,
+                    line: l,
+                }),
+                ',' => TokenKind::Single(Token {
+                    origin: c.to_string(),
+                    kind: TokenType::COMMA,
+                    line: l,
+                }),
+                '.' => TokenKind::Single(Token {
+                    origin: c.to_string(),
+                    kind: TokenType::DOT,
+                    line: l,
+                }),
+                '-' => TokenKind::Single(Token {
+                    origin: c.to_string(),
+                    kind: TokenType::MINUS,
+                    line: l,
+                }),
+                '+' => TokenKind::Single(Token {
+                    origin: c.to_string(),
+                    kind: TokenType::PLUS,
+                    line: l,
+                }),
+                ';' => TokenKind::Single(Token {
+                    origin: c.to_string(),
+                    kind: TokenType::SEMICOLON,
+                    line: l,
+                }),
+                '*' => TokenKind::Single(Token {
+                    origin: c.to_string(),
+                    kind: TokenType::STAR,
+                    line: l,
+                }),
                 '=' => TokenKind::Double(TokenType::EQUAL, TokenType::EQUALEQUAL),
                 '!' => TokenKind::Double(TokenType::BANG, TokenType::BANGEQUAL),
                 '<' => TokenKind::Double(TokenType::LESS, TokenType::LESSEQUAL),
@@ -221,19 +261,32 @@ impl<'de> Iterator for Lexer<'de> {
                 TokenKind::Double(token1, token2) => {
                     if p == Some('=') {
                         self.iterator.next();
-                        return Some(Ok(Token{origin: format!("{}{}", c, p.unwrap()), kind: token2, line: l}));
+                        return Some(Ok(Token {
+                            origin: format!("{}{}", c, p.unwrap()),
+                            kind: token2,
+                            line: l,
+                        }));
                     } else {
-                        return Some(Ok(Token{origin: c.to_string(), kind: token1, line: l}));
+                        return Some(Ok(Token {
+                            origin: c.to_string(),
+                            kind: token1,
+                            line: l,
+                        }));
                     }
                 }
                 TokenKind::Comment(token) => {
                     if p == Some('/') {
-                        while self.iterator.peek().is_some() && self.iterator.peek() != Some(&'\n') {
+                        while self.iterator.peek().is_some() && self.iterator.peek() != Some(&'\n')
+                        {
                             self.iterator.next();
                         }
                         continue;
                     }
-                    return Some(Ok(Token{origin: c.to_string(), kind: token, line: l}));
+                    return Some(Ok(Token {
+                        origin: c.to_string(),
+                        kind: token,
+                        line: l,
+                    }));
                 }
                 TokenKind::NewLine => {
                     self.line.increment();
@@ -253,7 +306,11 @@ impl<'de> Iterator for Lexer<'de> {
                     }
                     capture.push(self.iterator.next()?);
 
-                    return Some(Ok(Token{origin: capture.clone(), kind: TokenType::STRING, line: l}));
+                    return Some(Ok(Token {
+                        origin: capture.clone(),
+                        kind: TokenType::STRING,
+                        line: l,
+                    }));
                 }
                 TokenKind::Skip => continue,
                 TokenKind::Number => {
@@ -265,7 +322,11 @@ impl<'de> Iterator for Lexer<'de> {
                         capture.push(self.iterator.next()?);
                     }
                     let n = capture.parse::<f64>().unwrap();
-                    return Some(Ok(Token{origin: capture, kind: TokenType::NUMBER(n), line: l}));
+                    return Some(Ok(Token {
+                        origin: capture,
+                        kind: TokenType::NUMBER(n),
+                        line: l,
+                    }));
                 }
                 TokenKind::Identifier => {
                     let mut capture = c.to_string();
@@ -282,7 +343,11 @@ impl<'de> Iterator for Lexer<'de> {
                         .cloned()
                         .unwrap_or(TokenType::IDENTIFIER);
 
-                    return Some(Ok(Token{origin: capture, kind: token_type, line: l}));
+                    return Some(Ok(Token {
+                        origin: capture,
+                        kind: token_type,
+                        line: l,
+                    }));
                 }
                 TokenKind::Error(e) => return Some(Err(Error::msg(e))),
             }

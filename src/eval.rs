@@ -26,7 +26,7 @@ impl fmt::Display for Evaluation {
                 } else {
                     write!(f, "{:?}", n)
                 }
-            },
+            }
             Evaluation::Nil => write!(f, "nil"),
         }
     }
