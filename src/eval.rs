@@ -16,6 +16,7 @@ impl Evaluator {
             AstNode::Literal(literal) => match &literal {
                 LiteralValue::Bool(true) => Ok("true".to_string()),
                 LiteralValue::Bool(false) => Ok("false".to_string()),
+                LiteralValue::String(s) => Ok(s.clone()),
                 LiteralValue::Nil => Ok("nil".to_string()),
                 _ => todo!(),
             },
