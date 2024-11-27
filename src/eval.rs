@@ -20,7 +20,7 @@ impl fmt::Display for Evaluation {
         match self {
             Evaluation::Bool(b) => write!(f, "{}", b),
             Evaluation::String(s) => write!(f, "{}", s.trim_matches('"')),
-            Evaluation::Number(n) => write!(f, "{}", n),
+            Evaluation::Number(n) => write!(f, "{:?}", n),
             Evaluation::Nil => write!(f, "nil"),
         }
     }
