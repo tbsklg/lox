@@ -3,7 +3,7 @@ use std::iter::Peekable;
 
 use anyhow::{anyhow, Error};
 
-use crate::lex::{Lexer, Line, Token, TokenType};
+use crate::lex::{Lexer, Token, TokenType};
 
 #[derive(Debug)]
 pub enum AstNode {
@@ -39,7 +39,7 @@ impl fmt::Display for LiteralValue {
         let literal = match self {
             LiteralValue::String(s) => s.trim_matches('"'),
             LiteralValue::Bool(s) => &s.to_string(),
-            LiteralValue::Nil => &"nil".to_string(),
+            LiteralValue::Nil => "nil",
             LiteralValue::Number(n) => &format!("{:?}", n),
         };
         write!(f, "{}", literal)
@@ -183,7 +183,7 @@ impl<'e> Parser<'e> {
                 self.lexer.next();
 
                 let right = self.unary()?;
-                return Ok(AstNode::Unary(operator, Box::new(right)));
+                Ok(AstNode::Unary(operator, Box::new(right)))
             }
         }
     }
@@ -218,7 +218,7 @@ impl<'e> Parser<'e> {
                 };
                 self.lexer.next();
 
-                return Ok(expr);
+                Ok(expr)
             }
         }
     }
