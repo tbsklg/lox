@@ -5,7 +5,7 @@ use anyhow::{anyhow, Error};
 
 use crate::lex::{Lexer, Token, TokenType};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AstNode {
     Literal(LiteralValue),
     Grouping(Grouping),
@@ -26,7 +26,7 @@ impl fmt::Display for AstNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum LiteralValue {
     String(String),
     Bool(bool),
@@ -46,9 +46,9 @@ impl fmt::Display for LiteralValue {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Grouping {
-    expression: Box<AstNode>,
+    pub expression: Box<AstNode>,
 }
 
 impl fmt::Display for Grouping {

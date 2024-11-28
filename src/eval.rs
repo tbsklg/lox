@@ -46,7 +46,10 @@ impl Evaluator {
                 LiteralValue::Number(n) => Ok(Evaluation::Number(*n)),
                 LiteralValue::Nil => Ok(Evaluation::Nil),
             },
-            AstNode::Grouping(_) => todo!(),
+            AstNode::Grouping(g) => {
+                let evaluator = Evaluator::new(*g.expression.clone());
+                evaluator.evaluate()
+            },
             AstNode::Unary(_, _) => todo!(),
             AstNode::Binary(_, _, _) => todo!(),
             AstNode::Eof => todo!(),
