@@ -59,8 +59,7 @@ impl Evaluator {
                     },
                     &Operator::Bang => {
                         match Evaluator::new(*e.clone()).evaluate()? {
-                            Evaluation::Bool(true) => Ok(Evaluation::Bool(false)),
-                            Evaluation::Bool(false) => Ok(Evaluation::Bool(true)),
+                            Evaluation::Bool(b) => Ok(Evaluation::Bool(!b)),
                             Evaluation::Nil => Ok(Evaluation::Bool(true)),
                             _ => Ok(Evaluation::Bool(false)),
                         }
