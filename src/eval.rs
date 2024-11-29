@@ -1,8 +1,8 @@
 use core::fmt;
 
-use anyhow::Error;
+use anyhow::{anyhow, Error};
 
-use crate::parse::{AstNode, LiteralValue};
+use crate::parse::{AstNode, LiteralValue, Operator};
 
 pub struct Evaluator {
     ast: AstNode,
@@ -47,10 +47,27 @@ impl Evaluator {
                 LiteralValue::Nil => Ok(Evaluation::Nil),
             },
             AstNode::Grouping(g) => {
-                let evaluator = Evaluator::new(*g.expression.clone());
-                evaluator.evaluate()
+                Evaluator::new(*g.expression.clone()).evaluate()
             },
-            AstNode::Unary(_, _) => todo!(),
+            AstNode::Unary(o, e) => {
+               match o {
+                    &Operator::Minus => {
+                        match Evaluator::new(*e.clone()).evaluate()? {
+                            Evaluation::Number(n) => Ok(Evaluation::Number(-n)),
+                            _ => Err(anyhow!("Unary minus can only be applied to numbers")),
+                        }
+                    },
+                    &Operator::Bang => {
+                        match Evaluator::new(*e.clone()).evaluate()? {
+                            Evaluation::Bool(true) => Ok(Evaluation::Bool(false)),
+                            Evaluation::Bool(false) => Ok(Evaluation::Bool(true)),
+                            Evaluation::Nil => Ok(Evaluation::Bool(true)),
+                            _ => Ok(Evaluation::Bool(false)),
+                        }
+                    },
+                    _ => Err(anyhow!("Unknown unary operator")),
+                }
+            },
             AstNode::Binary(_, _, _) => todo!(),
             AstNode::Eof => todo!(),
         }
