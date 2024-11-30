@@ -174,7 +174,7 @@ enum TokenKind {
     Identifier,
 }
 
-impl<'de> Iterator for Lexer<'de> {
+impl Iterator for Lexer<'_> {
     type Item = Result<Token, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {

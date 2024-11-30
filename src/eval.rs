@@ -50,14 +50,14 @@ impl Evaluator {
                 Evaluator::new(*g.expression.clone()).evaluate()
             },
             AstNode::Unary(o, e) => {
-               match o {
-                    &Operator::Minus => {
+               match *o {
+                    Operator::Minus => {
                         match Evaluator::new(*e.clone()).evaluate()? {
                             Evaluation::Number(n) => Ok(Evaluation::Number(-n)),
                             _ => Err(anyhow!("Unary minus can only be applied to numbers")),
                         }
                     },
-                    &Operator::Bang => {
+                    Operator::Bang => {
                         match Evaluator::new(*e.clone()).evaluate()? {
                             Evaluation::Bool(b) => Ok(Evaluation::Bool(!b)),
                             Evaluation::Nil => Ok(Evaluation::Bool(true)),
@@ -75,10 +75,10 @@ impl Evaluator {
                         
                         match (left, right) {
                             (Evaluation::Number(l), Evaluation::Number(r)) => {
-                                match o {
-                                    &Operator::Minus => Ok(Evaluation::Number(l - r)),
-                                    &Operator::Multi => Ok(Evaluation::Number(l * r)),
-                                    &Operator::Div => Ok(Evaluation::Number(l / r)),
+                                match *o {
+                                    Operator::Minus => Ok(Evaluation::Number(l - r)),
+                                    Operator::Multi => Ok(Evaluation::Number(l * r)),
+                                    Operator::Div => Ok(Evaluation::Number(l / r)),
                                     _ => Err(anyhow!("Unknown binary operator")),
                                 }
                             },
