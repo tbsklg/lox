@@ -67,7 +67,27 @@ impl Evaluator {
                     _ => Err(anyhow!("Unknown unary operator")),
                 }
             },
-            AstNode::Binary(_, _, _) => todo!(),
+            AstNode::Binary(l, o, r) => {
+                match o {
+                    &Operator::Minus | &Operator::Multi | &Operator::Div => {
+                        let left = Evaluator::new(*l.clone()).evaluate()?;
+                        let right = Evaluator::new(*r.clone()).evaluate()?;
+                        
+                        match (left, right) {
+                            (Evaluation::Number(l), Evaluation::Number(r)) => {
+                                match o {
+                                    &Operator::Minus => Ok(Evaluation::Number(l - r)),
+                                    &Operator::Multi => Ok(Evaluation::Number(l * r)),
+                                    &Operator::Div => Ok(Evaluation::Number(l / r)),
+                                    _ => Err(anyhow!("Unknown binary operator")),
+                                }
+                            },
+                            _ => Err(anyhow!("Both operands must be numbers")),
+                        }
+                    }
+                    _ => Err(anyhow!("Unknown binary operator")),
+                }
+            },
             AstNode::Eof => todo!(),
         }
     }
