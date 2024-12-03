@@ -74,6 +74,12 @@ impl Evaluator {
                         let right = Evaluator::new(*r.clone()).evaluate()?;
                         
                         match (left, right) {
+                            (Evaluation::String(l), Evaluation::String(r)) => {
+                                match *o {
+                                    Operator::Plus => Ok(Evaluation::String(format!("{}{}", l.trim_matches('"'), r.trim_matches('"')))),
+                                    _ => Err(anyhow!("Strings can only be concatenated")),
+                                }
+                            },
                             (Evaluation::Number(l), Evaluation::Number(r)) => {
                                 match *o {
                                     Operator::Minus => Ok(Evaluation::Number(l - r)),
