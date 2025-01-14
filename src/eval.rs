@@ -46,54 +46,58 @@ impl Evaluator {
                 LiteralValue::Number(n) => Ok(Evaluation::Number(*n)),
                 LiteralValue::Nil => Ok(Evaluation::Nil),
             },
-            AstNode::Grouping(g) => {
-                Evaluator::new(*g.expression.clone()).evaluate()
+            AstNode::Grouping(g) => Evaluator::new(*g.expression.clone()).evaluate(),
+            AstNode::Unary(o, e) => match *o {
+                Operator::Minus => match Evaluator::new(*e.clone()).evaluate()? {
+                    Evaluation::Number(n) => Ok(Evaluation::Number(-n)),
+                    _ => Err(anyhow!("Unary minus can only be applied to numbers")),
+                },
+                Operator::Bang => match Evaluator::new(*e.clone()).evaluate()? {
+                    Evaluation::Bool(b) => Ok(Evaluation::Bool(!b)),
+                    Evaluation::Nil => Ok(Evaluation::Bool(true)),
+                    _ => Ok(Evaluation::Bool(false)),
+                },
+                _ => Err(anyhow!("Unknown unary operator")),
             },
-            AstNode::Unary(o, e) => {
-               match *o {
-                    Operator::Minus => {
-                        match Evaluator::new(*e.clone()).evaluate()? {
-                            Evaluation::Number(n) => Ok(Evaluation::Number(-n)),
-                            _ => Err(anyhow!("Unary minus can only be applied to numbers")),
-                        }
-                    },
-                    Operator::Bang => {
-                        match Evaluator::new(*e.clone()).evaluate()? {
-                            Evaluation::Bool(b) => Ok(Evaluation::Bool(!b)),
-                            Evaluation::Nil => Ok(Evaluation::Bool(true)),
-                            _ => Ok(Evaluation::Bool(false)),
-                        }
-                    },
-                    _ => Err(anyhow!("Unknown unary operator")),
-                }
-            },
-            AstNode::Binary(l, o, r) => {
-                match o {
-                    &Operator::Minus | &Operator::Plus | &Operator::Multi | &Operator::Div => {
-                        let left = Evaluator::new(*l.clone()).evaluate()?;
-                        let right = Evaluator::new(*r.clone()).evaluate()?;
-                        
-                        match (left, right) {
-                            (Evaluation::String(l), Evaluation::String(r)) => {
-                                match *o {
-                                    Operator::Plus => Ok(Evaluation::String(format!("{}{}", l.trim_matches('"'), r.trim_matches('"')))),
-                                    _ => Err(anyhow!("Strings can only be concatenated")),
-                                }
-                            },
-                            (Evaluation::Number(l), Evaluation::Number(r)) => {
-                                match *o {
-                                    Operator::Minus => Ok(Evaluation::Number(l - r)),
-                                    Operator::Multi => Ok(Evaluation::Number(l * r)),
-                                    Operator::Div => Ok(Evaluation::Number(l / r)),
-                                    Operator::Plus => Ok(Evaluation::Number(l + r)),
-                                    _ => Err(anyhow!("Unknown binary operator")),
-                                }
-                            },
-                            _ => Err(anyhow!("Both operands must be numbers")),
-                        }
+            AstNode::Binary(l, o, r) => match o {
+                &Operator::Minus
+                | &Operator::Plus
+                | &Operator::Multi
+                | &Operator::Div
+                | &Operator::Greater
+                | &Operator::Less
+                | &Operator::LessEqual
+                | &Operator::GreaterEqual => {
+                    let left = Evaluator::new(*l.clone()).evaluate()?;
+                    let right = Evaluator::new(*r.clone()).evaluate()?;
+
+                    match (left, right) {
+                        (Evaluation::String(l), Evaluation::String(r)) => match *o {
+                            Operator::Plus => Ok(Evaluation::String(format!(
+                                "{}{}",
+                                l.trim_matches('"'),
+                                r.trim_matches('"')
+                            ))),
+                            _ => Err(anyhow!("Strings can only be concatenated")),
+                        },
+                        (Evaluation::Number(l), Evaluation::Number(r)) => match o {
+                            Operator::Minus => Ok(Evaluation::Number(l - r)),
+                            Operator::Multi => Ok(Evaluation::Number(l * r)),
+                            Operator::Div => Ok(Evaluation::Number(l / r)),
+                            Operator::Plus => Ok(Evaluation::Number(l + r)),
+                            Operator::Greater => Ok(Evaluation::Bool(l > r)),
+                            Operator::GreaterEqual => Ok(Evaluation::Bool(l >= r)),
+                            Operator::Less => Ok(Evaluation::Bool(l < r)),
+                            Operator::LessEqual => Ok(Evaluation::Bool(l <= r)),
+                            e => {
+                                println!("{:?}", e);
+                                Err(anyhow!("Unknown binary operator"))
+                            }
+                        },
+                        _ => Err(anyhow!("Both operands must be numbers")),
                     }
-                    _ => Err(anyhow!("Unknown binary operator")),
                 }
+                _ => Err(anyhow!("Unknown binary operator")),
             },
             AstNode::Eof => todo!(),
         }
