@@ -68,7 +68,7 @@ impl Evaluator {
                 | &Operator::Less
                 | &Operator::LessEqual
                 | &Operator::GreaterEqual
-                | &Operator::EqualEqual 
+                | &Operator::EqualEqual
                 | &Operator::BangEqual => {
                     let left = Evaluator::new(*l.clone()).evaluate()?;
                     let right = Evaluator::new(*r.clone()).evaluate()?;
@@ -95,17 +95,17 @@ impl Evaluator {
                             Operator::LessEqual => Ok(Evaluation::Bool(l <= r)),
                             Operator::EqualEqual => Ok(Evaluation::Bool(l == r)),
                             Operator::BangEqual => Ok(Evaluation::Bool(l != r)),
-                            _ => Err(anyhow!("Unknown binary operator"))
+                            _ => Err(anyhow!("Unknown binary operator")),
                         },
                         (Evaluation::Number(_), Evaluation::String(_)) => match o {
-                            Operator::Multi => Err(anyhow!("Operands must be numbers.")),
-                            Operator::Div => Err(anyhow!("Operands must be numbers.")),
-                            _  => Ok(Evaluation::Bool(false)),
+                            Operator::Plus => Ok(Evaluation::Bool(false)),
+                            Operator::EqualEqual => Ok(Evaluation::Bool(false)),
+                            _ => Err(anyhow!("Both operands must be numbers")),
                         },
                         (Evaluation::String(_), Evaluation::Number(_)) => match o {
-                            Operator::Multi => Err(anyhow!("Operands must be numbers.")),
-                            Operator::Div => Err(anyhow!("Operands must be numbers.")),
-                            _  => Ok(Evaluation::Bool(false)),
+                            Operator::Plus => Ok(Evaluation::Bool(false)),
+                            Operator::EqualEqual => Ok(Evaluation::Bool(false)),
+                            _ => Err(anyhow!("Both operands must be numbers")),
                         },
                         _ => Err(anyhow!("Both operands must be numbers")),
                     }
