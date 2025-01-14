@@ -98,9 +98,13 @@ impl Evaluator {
                             _ => Err(anyhow!("Unknown binary operator"))
                         },
                         (Evaluation::Number(_), Evaluation::String(_)) => match o {
+                            Operator::Multi => Err(anyhow!("Operands must be numbers.")),
+                            Operator::Div => Err(anyhow!("Operands must be numbers.")),
                             _  => Ok(Evaluation::Bool(false)),
                         },
                         (Evaluation::String(_), Evaluation::Number(_)) => match o {
+                            Operator::Multi => Err(anyhow!("Operands must be numbers.")),
+                            Operator::Div => Err(anyhow!("Operands must be numbers.")),
                             _  => Ok(Evaluation::Bool(false)),
                         },
                         _ => Err(anyhow!("Both operands must be numbers")),
