@@ -67,7 +67,9 @@ impl Evaluator {
                 | &Operator::Greater
                 | &Operator::Less
                 | &Operator::LessEqual
-                | &Operator::GreaterEqual => {
+                | &Operator::GreaterEqual
+                | &Operator::EqualEqual 
+                | &Operator::BangEqual => {
                     let left = Evaluator::new(*l.clone()).evaluate()?;
                     let right = Evaluator::new(*r.clone()).evaluate()?;
 
@@ -78,6 +80,8 @@ impl Evaluator {
                                 l.trim_matches('"'),
                                 r.trim_matches('"')
                             ))),
+                            Operator::EqualEqual => Ok(Evaluation::Bool(l == r)),
+                            Operator::BangEqual => Ok(Evaluation::Bool(l != r)),
                             _ => Err(anyhow!("Strings can only be concatenated")),
                         },
                         (Evaluation::Number(l), Evaluation::Number(r)) => match o {
@@ -89,10 +93,15 @@ impl Evaluator {
                             Operator::GreaterEqual => Ok(Evaluation::Bool(l >= r)),
                             Operator::Less => Ok(Evaluation::Bool(l < r)),
                             Operator::LessEqual => Ok(Evaluation::Bool(l <= r)),
-                            e => {
-                                println!("{:?}", e);
-                                Err(anyhow!("Unknown binary operator"))
-                            }
+                            Operator::EqualEqual => Ok(Evaluation::Bool(l == r)),
+                            Operator::BangEqual => Ok(Evaluation::Bool(l != r)),
+                            _ => Err(anyhow!("Unknown binary operator"))
+                        },
+                        (Evaluation::Number(_), Evaluation::String(_)) => match o {
+                            _  => Ok(Evaluation::Bool(false)),
+                        },
+                        (Evaluation::String(_), Evaluation::Number(_)) => match o {
+                            _  => Ok(Evaluation::Bool(false)),
                         },
                         _ => Err(anyhow!("Both operands must be numbers")),
                     }
