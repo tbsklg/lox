@@ -50,7 +50,7 @@ impl Evaluator {
             AstNode::Unary(o, e) => match *o {
                 Operator::Minus => match Evaluator::new(*e.clone()).evaluate()? {
                     Evaluation::Number(n) => Ok(Evaluation::Number(-n)),
-                    _ => Err(anyhow!("Unary minus can only be applied to numbers")),
+                    _ => Err(anyhow!("Operand must be a number.")),
                 },
                 Operator::Bang => match Evaluator::new(*e.clone()).evaluate()? {
                     Evaluation::Bool(b) => Ok(Evaluation::Bool(!b)),

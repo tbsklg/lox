@@ -56,7 +56,7 @@ fn main() {
                         Ok(result) => println!("{}", result),
                         Err(e) => {
                             eprintln!("{}", e);
-                            exit_code = 65;
+                            exit_code = 70;
                         }
                     }
                 }
