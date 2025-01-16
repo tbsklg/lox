@@ -2,10 +2,10 @@ use core::fmt;
 
 use anyhow::{anyhow, Error};
 
-use crate::parse::{AstNode, LiteralValue, Operator};
+use crate::parse::{Expr, LiteralValue, Operator, Stmt};
 
 pub struct Evaluator {
-    ast: AstNode,
+    ast: Vec<Stmt>,
 }
 
 pub enum Evaluation {
@@ -33,86 +33,87 @@ impl fmt::Display for Evaluation {
 }
 
 impl Evaluator {
-    pub fn new(ast: AstNode) -> Self {
+    pub fn new(ast: Vec<Stmt>) -> Self {
         Self { ast }
     }
 
     pub fn evaluate(&self) -> Result<Evaluation, Error> {
-        match &self.ast {
-            AstNode::Literal(literal) => match &literal {
-                LiteralValue::Bool(true) => Ok(Evaluation::Bool(true)),
-                LiteralValue::Bool(false) => Ok(Evaluation::Bool(false)),
+        self.ast
+            .iter()
+            .try_fold(Evaluation::Nil, |_, stmt| self.evaluate_stmt(stmt))
+    }
+
+    fn evaluate_stmt(&self, stmt: &Stmt) -> Result<Evaluation, Error> {
+        match stmt {
+            Stmt::Expression(expr) => self.evaluate_expr(expr),
+            Stmt::Print(expr) => self.evaluate_expr(expr),
+        }
+    }
+
+    fn evaluate_expr(&self, expr: &Expr) -> Result<Evaluation, Error> {
+        match expr {
+            Expr::Literal(literal) => match literal {
+                LiteralValue::Bool(b) => Ok(Evaluation::Bool(*b)),
                 LiteralValue::String(s) => Ok(Evaluation::String(s.clone())),
                 LiteralValue::Number(n) => Ok(Evaluation::Number(*n)),
                 LiteralValue::Nil => Ok(Evaluation::Nil),
             },
-            AstNode::Grouping(g) => Evaluator::new(*g.expression.clone()).evaluate(),
-            AstNode::Unary(o, e) => match *o {
-                Operator::Minus => match Evaluator::new(*e.clone()).evaluate()? {
-                    Evaluation::Number(n) => Ok(Evaluation::Number(-n)),
-                    _ => Err(anyhow!("Operand must be a number.")),
-                },
-                Operator::Bang => match Evaluator::new(*e.clone()).evaluate()? {
-                    Evaluation::Bool(b) => Ok(Evaluation::Bool(!b)),
-                    Evaluation::Nil => Ok(Evaluation::Bool(true)),
-                    _ => Ok(Evaluation::Bool(false)),
-                },
-                _ => Err(anyhow!("Unknown unary operator")),
-            },
-            AstNode::Binary(l, o, r) => match o {
-                &Operator::Minus
-                | &Operator::Plus
-                | &Operator::Multi
-                | &Operator::Div
-                | &Operator::Greater
-                | &Operator::Less
-                | &Operator::LessEqual
-                | &Operator::GreaterEqual
-                | &Operator::EqualEqual
-                | &Operator::BangEqual => {
-                    let left = Evaluator::new(*l.clone()).evaluate()?;
-                    let right = Evaluator::new(*r.clone()).evaluate()?;
-
-                    match (left, right) {
-                        (Evaluation::String(l), Evaluation::String(r)) => match *o {
-                            Operator::Plus => Ok(Evaluation::String(format!(
-                                "{}{}",
-                                l.trim_matches('"'),
-                                r.trim_matches('"')
-                            ))),
-                            Operator::EqualEqual => Ok(Evaluation::Bool(l == r)),
-                            Operator::BangEqual => Ok(Evaluation::Bool(l != r)),
-                            _ => Err(anyhow!("Strings can only be concatenated")),
-                        },
-                        (Evaluation::Number(l), Evaluation::Number(r)) => match o {
-                            Operator::Minus => Ok(Evaluation::Number(l - r)),
-                            Operator::Multi => Ok(Evaluation::Number(l * r)),
-                            Operator::Div => Ok(Evaluation::Number(l / r)),
-                            Operator::Plus => Ok(Evaluation::Number(l + r)),
-                            Operator::Greater => Ok(Evaluation::Bool(l > r)),
-                            Operator::GreaterEqual => Ok(Evaluation::Bool(l >= r)),
-                            Operator::Less => Ok(Evaluation::Bool(l < r)),
-                            Operator::LessEqual => Ok(Evaluation::Bool(l <= r)),
-                            Operator::EqualEqual => Ok(Evaluation::Bool(l == r)),
-                            Operator::BangEqual => Ok(Evaluation::Bool(l != r)),
-                            _ => Err(anyhow!("Unknown binary operator")),
-                        },
-                        (Evaluation::Number(_), Evaluation::String(_)) => match o {
-                            Operator::Plus => Ok(Evaluation::Bool(false)),
-                            Operator::EqualEqual => Ok(Evaluation::Bool(false)),
-                            _ => Err(anyhow!("Both operands must be numbers")),
-                        },
-                        (Evaluation::String(_), Evaluation::Number(_)) => match o {
-                            Operator::Plus => Ok(Evaluation::Bool(false)),
-                            Operator::EqualEqual => Ok(Evaluation::Bool(false)),
-                            _ => Err(anyhow!("Both operands must be numbers")),
-                        },
-                        _ => Err(anyhow!("Both operands must be numbers")),
-                    }
+            Expr::Grouping(expr) => self.evaluate_expr(expr),
+            Expr::Unary(op, expr) => {
+                let right = self.evaluate_expr(expr)?;
+                match op {
+                    Operator::Minus => match right {
+                        Evaluation::Number(n) => Ok(Evaluation::Number(-n)),
+                        _ => Err(anyhow!("Operand must be a number.")),
+                    },
+                    Operator::Bang => match right {
+                        Evaluation::Bool(b) => Ok(Evaluation::Bool(!b)),
+                        Evaluation::Nil => Ok(Evaluation::Bool(true)),
+                        _ => Ok(Evaluation::Bool(false)),
+                    },
+                    _ => Err(anyhow!("Unknown unary operator")),
                 }
-                _ => Err(anyhow!("Unknown binary operator")),
+            }
+            Expr::Binary(left, op, right) => self.evaluate_binary(left, op, right),
+        }
+    }
+
+    fn evaluate_binary(
+        &self,
+        left: &Expr,
+        op: &Operator,
+        right: &Expr,
+    ) -> Result<Evaluation, Error> {
+        let left_val = self.evaluate_expr(left)?;
+        let right_val = self.evaluate_expr(right)?;
+
+        match (left_val, right_val) {
+            (Evaluation::Number(l), Evaluation::Number(r)) => match op {
+                Operator::Minus => Ok(Evaluation::Number(l - r)),
+                Operator::Plus => Ok(Evaluation::Number(l + r)),
+                Operator::Multi => Ok(Evaluation::Number(l * r)),
+                Operator::Div => Ok(Evaluation::Number(l / r)),
+                Operator::Greater => Ok(Evaluation::Bool(l > r)),
+                Operator::GreaterEqual => Ok(Evaluation::Bool(l >= r)),
+                Operator::Less => Ok(Evaluation::Bool(l < r)),
+                Operator::LessEqual => Ok(Evaluation::Bool(l <= r)),
+                Operator::EqualEqual => Ok(Evaluation::Bool(l == r)),
+                Operator::BangEqual => Ok(Evaluation::Bool(l != r)),
+                _ => Err(anyhow!("Invalid binary operator for numbers")),
             },
-            AstNode::Eof => todo!(),
+            (Evaluation::String(l), Evaluation::String(r)) => match op {
+                Operator::Plus => Ok(Evaluation::String(format!("{}{}", l, r))),
+                Operator::EqualEqual => Ok(Evaluation::Bool(l == r)),
+                Operator::BangEqual => Ok(Evaluation::Bool(l != r)),
+                _ => Err(anyhow!("Only `+`, `==`, and `!=` are valid for strings")),
+            },
+            (Evaluation::Number(_), Evaluation::String(_)) => match op {
+                Operator::EqualEqual => Ok(Evaluation::Bool(false)),
+                _ => Err(anyhow!("Only `+`, `==`, and `!=` are valid for strings")),
+            },
+            _ => Err(anyhow!(
+                "Operands must be of the same type for binary operations"
+            )),
         }
     }
 }

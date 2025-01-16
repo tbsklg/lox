@@ -1,27 +1,40 @@
 use core::fmt;
 use std::iter::Peekable;
 
-use anyhow::{anyhow, Error};
-
 use crate::lex::{Lexer, Token, TokenType};
 
+use anyhow::{anyhow, Error};
+
 #[derive(Debug, Clone)]
-pub enum AstNode {
+pub enum Expr {
     Literal(LiteralValue),
-    Grouping(Grouping),
-    Unary(Operator, Box<AstNode>),
-    Binary(Box<AstNode>, Operator, Box<AstNode>),
-    Eof,
+    Grouping(Box<Expr>),
+    Unary(Operator, Box<Expr>),
+    Binary(Box<Expr>, Operator, Box<Expr>),
 }
 
-impl fmt::Display for AstNode {
+#[derive(Debug, Clone)]
+pub enum Stmt {
+    Print(Expr),
+    Expression(Expr),
+}
+
+impl fmt::Display for Stmt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AstNode::Literal(v) => write!(f, "{v}"),
-            AstNode::Grouping(v) => write!(f, "{v}"),
-            AstNode::Unary(o, v) => write!(f, "({o} {v})"),
-            AstNode::Binary(l, o, r) => write!(f, "({o} {l} {r})"),
-            AstNode::Eof => write!(f, ""),
+            Stmt::Print(e) => write!(f, "{e}"),
+            Stmt::Expression(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+impl fmt::Display for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Expr::Literal(v) => write!(f, "{v}"),
+            Expr::Grouping(v) => write!(f, "(group {})", v),
+            Expr::Unary(o, v) => write!(f, "({o} {v})"),
+            Expr::Binary(l, o, r) => write!(f, "({o} {l} {r})"),
         }
     }
 }
@@ -48,13 +61,7 @@ impl fmt::Display for LiteralValue {
 
 #[derive(Debug, Clone)]
 pub struct Grouping {
-    pub expression: Box<AstNode>,
-}
-
-impl fmt::Display for Grouping {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(group {})", self.expression)
-    }
+    pub expression: Box<Expr>,
 }
 
 #[derive(Debug, Clone)]
@@ -101,11 +108,49 @@ impl<'e> Parser<'e> {
         }
     }
 
-    pub fn parse(&mut self) -> Result<AstNode, Error> {
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, Error> {
+        let mut statements = Vec::new();
+        while !self.is_at_end() {
+            statements.push(self.statement()?);
+        }
+        Ok(statements)
+    }
+
+    fn is_at_end(&mut self) -> bool {
+        matches!(self.peek(), Ok(token) if token.kind == TokenType::EOF)
+    }
+
+    fn statement(&mut self) -> Result<Stmt, Error> {
+        if matches!(self.peek()?.kind, TokenType::PRINT) {
+            self.lexer.next();
+            self.print_statement()
+        } else {
+            self.expression_statement()
+        }
+    }
+
+    fn print_statement(&mut self) -> Result<Stmt, Error> {
+        let expr = self.expression()?;
+        match self.peek()?.kind {
+            TokenType::SEMICOLON => {
+                self.lexer.next();
+                Ok(Stmt::Print(expr))
+            }
+            TokenType::EOF => Ok(Stmt::Expression(expr)),
+            _ => Err(anyhow!("Expected semicolon after expression")),
+        }
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt, Error> {
+        let expr = self.expression()?;
+        Ok(Stmt::Expression(expr))
+    }
+
+    fn expression(&mut self) -> Result<Expr, Error> {
         self.comparison()
     }
 
-    pub fn comparison(&mut self) -> Result<AstNode, Error> {
+    pub fn comparison(&mut self) -> Result<Expr, Error> {
         let mut expr = self.term()?;
 
         while matches!(
@@ -130,13 +175,13 @@ impl<'e> Parser<'e> {
             self.lexer.next();
 
             let right = self.term()?;
-            expr = AstNode::Binary(Box::new(expr), operator, Box::new(right));
+            expr = Expr::Binary(Box::new(expr), operator, Box::new(right));
         }
 
         Ok(expr)
     }
 
-    fn term(&mut self) -> Result<AstNode, Error> {
+    fn term(&mut self) -> Result<Expr, Error> {
         let mut expr = self.factor()?;
 
         while matches!(self.peek()?.kind, TokenType::MINUS | TokenType::PLUS) {
@@ -149,13 +194,13 @@ impl<'e> Parser<'e> {
             self.lexer.next();
 
             let right = self.factor()?;
-            expr = AstNode::Binary(Box::new(expr), operator, Box::new(right));
+            expr = Expr::Binary(Box::new(expr), operator, Box::new(right));
         }
 
         Ok(expr)
     }
 
-    fn factor(&mut self) -> Result<AstNode, Error> {
+    fn factor(&mut self) -> Result<Expr, Error> {
         let mut expr = self.unary()?;
 
         while matches!(self.peek()?.kind, TokenType::SLASH | TokenType::STAR) {
@@ -168,13 +213,13 @@ impl<'e> Parser<'e> {
             self.lexer.next();
 
             let right = self.unary()?;
-            expr = AstNode::Binary(Box::new(expr), operator, Box::new(right));
+            expr = Expr::Binary(Box::new(expr), operator, Box::new(right));
         }
 
         Ok(expr)
     }
 
-    fn unary(&mut self) -> Result<AstNode, Error> {
+    fn unary(&mut self) -> Result<Expr, Error> {
         let token = self.peek()?;
         let operator = match token.kind {
             TokenType::BANG => Operator::Bang,
@@ -184,31 +229,31 @@ impl<'e> Parser<'e> {
         self.lexer.next();
 
         let right = self.unary()?;
-        Ok(AstNode::Unary(operator, Box::new(right)))
+        Ok(Expr::Unary(operator, Box::new(right)))
     }
 
-    fn primary(&mut self) -> Result<AstNode, Error> {
+    fn primary(&mut self) -> Result<Expr, Error> {
         let token = self.peek()?;
         let expr = match token.kind {
-            TokenType::FALSE => AstNode::Literal(LiteralValue::Bool(false)),
-            TokenType::TRUE => AstNode::Literal(LiteralValue::Bool(true)),
-            TokenType::NIL => AstNode::Literal(LiteralValue::Nil),
-            TokenType::NUMBER(n) => AstNode::Literal(LiteralValue::Number(n)),
-            TokenType::STRING => AstNode::Literal(LiteralValue::String(token.clone().origin)),
+            TokenType::FALSE => Expr::Literal(LiteralValue::Bool(false)),
+            TokenType::TRUE => Expr::Literal(LiteralValue::Bool(true)),
+            TokenType::NIL => Expr::Literal(LiteralValue::Nil),
+            TokenType::NUMBER(n) => Expr::Literal(LiteralValue::Number(n)),
+            TokenType::STRING => Expr::Literal(LiteralValue::String(
+                token.clone().origin.trim_matches('"').to_string(),
+            )),
             TokenType::LeftParen => {
                 self.lexer.next();
                 let expr = self.comparison()?;
                 let token = self.peek()?;
                 if token.kind == TokenType::RightParen {
                     self.lexer.next();
-                    return Ok(AstNode::Grouping(Grouping {
-                        expression: Box::new(expr),
-                    }));
+                    return Ok(Expr::Grouping(Box::new(expr)));
                 }
 
                 return Err(anyhow!("[line {}] Expect ')' after expression", token.line));
             }
-            _ => return Err(anyhow!("")),
+            _ => return Err(anyhow!("Unexpected token: {:?}", token.kind)),
         };
         self.lexer.next();
 
@@ -219,10 +264,10 @@ impl<'e> Parser<'e> {
         match self.lexer.peek() {
             Some(Ok(token)) => Ok(token.clone()),
             Some(Err(e)) => Err(anyhow!("{}", e)),
-            _ => Ok(Token {
-                kind: TokenType::NIL,
+            None => Ok(Token {
                 origin: "".to_string(),
-                line: 0,
+                kind: TokenType::EOF,
+                line: u32::MAX,
             }),
         }
     }

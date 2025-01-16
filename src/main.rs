@@ -24,28 +24,53 @@ fn main() {
         "tokenize" => {
             for token in lex::Lexer::new(&file_contents) {
                 match token {
-                    Ok(token) => println!("{}", token),
+                    Ok(token) => println!("{token}"),
                     Err(e) => {
-                        eprintln!("{}", e);
+                        eprintln!("{e}");
                         exit_code = 65;
                     }
                 }
             }
 
-            println!("EOF  null"); // Placeholder, remove this line when implementing the scanner
+            println!("EOF  null");
         }
         "parse" => {
             let ast = parse::Parser::new(&file_contents).parse();
 
             match ast {
-                Ok(ast) => println!("{}", ast),
+                Ok(ast) => {
+                    for stmt in ast {
+                        println!("{stmt}");
+                    }
+                }
+                Err(e) => {
+                    eprintln!("{e}");
+                    exit_code = 65;
+                }
+            }
+        }
+        "evaluate" => {
+            let ast = parse::Parser::new(&file_contents).parse();
+
+            match ast {
+                Ok(ast) => {
+                    let result = eval::Evaluator::new(ast).evaluate();
+
+                    match result {
+                        Ok(result) => println!("{}", result),
+                        Err(e) => {
+                            eprintln!("{}", e);
+                            exit_code = 70;
+                        }
+                    }
+                }
                 Err(e) => {
                     eprintln!("{}", e);
                     exit_code = 65;
                 }
             }
         }
-        "evaluate" => {
+        "run" => {
             let ast = parse::Parser::new(&file_contents).parse();
 
             match ast {
