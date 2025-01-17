@@ -178,9 +178,7 @@ impl Iterator for Lexer<'_> {
     type Item = Result<Token, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.iterator.peek().is_none() {
-            return None;
-        }
+        self.iterator.peek()?;
 
         loop {
             let c = self.iterator.next()?;

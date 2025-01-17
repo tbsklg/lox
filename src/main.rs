@@ -57,7 +57,11 @@ fn main() {
                     let result = eval::Evaluator::new(ast).evaluate();
 
                     match result {
-                        Ok(result) => println!("{}", result),
+                        Ok(result) => {
+                            for eval in result {
+                                println!("{}", eval)
+                            }
+                        }
                         Err(e) => {
                             eprintln!("{}", e);
                             exit_code = 70;
@@ -78,7 +82,11 @@ fn main() {
                     let result = eval::Evaluator::new(ast).evaluate();
 
                     match result {
-                        Ok(result) => println!("{}", result),
+                        Ok(result) => {
+                            for eval in result {
+                                println!("{}", eval)
+                            }
+                        }
                         Err(e) => {
                             eprintln!("{}", e);
                             exit_code = 70;

@@ -113,11 +113,6 @@ impl Evaluator {
                 Operator::EqualEqual => Ok(Evaluation::Bool(false)),
                 _ => Err(anyhow!("Only `+`, `==`, and `!=` are valid for strings")),
             },
-            (Evaluation::Bool(l), Evaluation::Bool(r)) => match op {
-                Operator::EqualEqual => Ok(Evaluation::Bool(l == r)),
-                Operator::BangEqual=> Ok(Evaluation::Bool(l != r)),
-                _ => Err(anyhow!("Unsupported operation for binary bools")),
-            },
             _ => Err(anyhow!(
                 "Operands must be of the same type for binary operations"
             )),
