@@ -109,10 +109,14 @@ impl<'e> Parser<'e> {
     }
 
     pub fn parse(&mut self) -> Result<Vec<Stmt>, Error> {
-        let mut statements = Vec::new();
+        let mut statements: Vec<Stmt> = Vec::new();
         while !self.is_at_end() {
-            statements.push(self.statement()?);
+            match self.statement()? {
+                Some(stmt) => statements.push(stmt),
+                None => continue,
+            }
         }
+
         Ok(statements)
     }
 
@@ -120,7 +124,7 @@ impl<'e> Parser<'e> {
         matches!(self.peek(), Ok(token) if token.kind == TokenType::EOF)
     }
 
-    fn statement(&mut self) -> Result<Stmt, Error> {
+    fn statement(&mut self) -> Result<Option<Stmt>, Error> {
         if matches!(self.peek()?.kind, TokenType::PRINT) {
             self.lexer.next();
             self.print_statement()
@@ -129,21 +133,28 @@ impl<'e> Parser<'e> {
         }
     }
 
-    fn print_statement(&mut self) -> Result<Stmt, Error> {
+    fn print_statement(&mut self) -> Result<Option<Stmt>, Error> {
         let expr = self.expression()?;
         match self.peek()?.kind {
             TokenType::SEMICOLON => {
                 self.lexer.next();
-                Ok(Stmt::Print(expr))
+                Ok(Some(Stmt::Print(expr)))
             }
-            TokenType::EOF => Ok(Stmt::Expression(expr)),
+            TokenType::EOF => Ok(Some(Stmt::Expression(expr))),
             _ => Err(anyhow!("Expected semicolon after expression")),
         }
     }
 
-    fn expression_statement(&mut self) -> Result<Stmt, Error> {
+    fn expression_statement(&mut self) -> Result<Option<Stmt>, Error> {
         let expr = self.expression()?;
-        Ok(Stmt::Expression(expr))
+        match self.peek()?.kind {
+            TokenType::SEMICOLON => {
+                self.lexer.next();
+                Ok(Some(Stmt::Expression(expr)))
+            }
+            TokenType::EOF => Ok(Some(Stmt::Print(expr))),
+            _ => Err(anyhow!("Expected semicolon after expression")),
+        }
     }
 
     fn expression(&mut self) -> Result<Expr, Error> {
@@ -253,7 +264,7 @@ impl<'e> Parser<'e> {
 
                 return Err(anyhow!("[line {}] Expect ')' after expression", token.line));
             }
-            _ => return Err(anyhow!("Unexpected token: {:?}", token.kind)),
+            _ => return Err(anyhow!("[primary] Unexpected token: {:?}", token.kind)),
         };
         self.lexer.next();
 

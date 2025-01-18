@@ -1,7 +1,6 @@
 use core::fmt;
 
 use anyhow::{anyhow, Error};
-
 use crate::parse::{Expr, LiteralValue, Operator, Stmt};
 
 pub struct Evaluator {
@@ -32,24 +31,46 @@ impl fmt::Display for Evaluation {
     }
 }
 
+pub struct RuntimeError {
+    pub error: Error,
+}
+
 impl Evaluator {
     pub fn new(ast: Vec<Stmt>) -> Self {
         Self { ast }
     }
 
-    pub fn evaluate(&self) -> Result<Vec<Evaluation>, Error> {
-        self.ast.iter().try_fold(vec![], |mut acc, curr| {
-            let eval_stmt = self.evaluate_stmt(&curr)?;
-            acc.push(eval_stmt);
-            Ok(acc)
-        })
+    pub fn evaluate(&self) -> Result<(), RuntimeError> {
+        for statement in &self.ast {
+            match self.evaluate_stmt(statement) {
+                Ok(_) => continue,
+                Err(e) => return Err(RuntimeError { error: e })
+            }
+        }
+
+        Ok(())
     }
 
-    fn evaluate_stmt(&self, stmt: &Stmt) -> Result<Evaluation, Error> {
+    fn evaluate_stmt(&self, stmt: &Stmt) -> Result<(), Error> {
         match stmt {
-            Stmt::Expression(expr) => self.evaluate_expr(expr),
-            Stmt::Print(expr) => self.evaluate_expr(expr),
+            Stmt::Expression(expr) => {
+                self.evaluate_expr(expr)?;
+                Ok(())
+            }
+            Stmt::Print(expr) => {
+                match self.evaluate_expr(expr) {
+                    Ok(result) => {
+                        self.print_evaluation(&result);
+                        Ok(())
+                    }
+                    Err(e) => Err(e),
+                }
+            }
         }
+    }
+
+    fn print_evaluation(&self, evaluation: &Evaluation) {
+        println!("{}", evaluation);
     }
 
     fn evaluate_expr(&self, expr: &Expr) -> Result<Evaluation, Error> {
@@ -115,7 +136,7 @@ impl Evaluator {
             },
             (Evaluation::Bool(l), Evaluation::Bool(r)) => match op {
                 Operator::EqualEqual => Ok(Evaluation::Bool(l == r)),
-                Operator::BangEqual=> Ok(Evaluation::Bool(l != r)),
+                Operator::BangEqual => Ok(Evaluation::Bool(l != r)),
                 _ => Err(anyhow!("Unsupported operation for binary bools")),
             },
             _ => Err(anyhow!(

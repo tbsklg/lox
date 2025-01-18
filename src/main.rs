@@ -53,21 +53,13 @@ fn main() {
             let ast = parse::Parser::new(&file_contents).parse();
 
             match ast {
-                Ok(ast) => {
-                    let result = eval::Evaluator::new(ast).evaluate();
-
-                    match result {
-                        Ok(result) => {
-                            for eval in result {
-                                println!("{}", eval)
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("{}", e);
-                            exit_code = 70;
-                        }
+                Ok(ast) => match eval::Evaluator::new(ast).evaluate() {
+                    Ok(_) => (),
+                    Err(e) => {
+                        eprintln!("{}", e.error);
+                        exit_code = 70;
                     }
-                }
+                },
                 Err(e) => {
                     eprintln!("{}", e);
                     exit_code = 65;
@@ -78,21 +70,13 @@ fn main() {
             let ast = parse::Parser::new(&file_contents).parse();
 
             match ast {
-                Ok(ast) => {
-                    let result = eval::Evaluator::new(ast).evaluate();
-
-                    match result {
-                        Ok(result) => {
-                            for eval in result {
-                                println!("{}", eval)
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("{}", e);
-                            exit_code = 70;
-                        }
+                Ok(ast) => match eval::Evaluator::new(ast).evaluate() {
+                    Ok(_) => (),
+                    Err(e) => {
+                        eprintln!("{}", e.error);
+                        exit_code = 70;
                     }
-                }
+                },
                 Err(e) => {
                     eprintln!("{}", e);
                     exit_code = 65;
