@@ -1,12 +1,10 @@
 use core::fmt;
+use std::collections::HashMap;
 
-use anyhow::{anyhow, Error};
 use crate::parse::{Expr, LiteralValue, Operator, Stmt};
+use anyhow::{anyhow, Error};
 
-pub struct Evaluator {
-    ast: Vec<Stmt>,
-}
-
+#[derive(Clone)]
 pub enum Evaluation {
     Bool(bool),
     String(String),
@@ -35,37 +33,56 @@ pub struct RuntimeError {
     pub error: Error,
 }
 
+type Environment = HashMap<String, Evaluation>;
+
+pub struct Evaluator {
+    ast: Vec<Stmt>,
+    env: Environment,
+}
+
 impl Evaluator {
     pub fn new(ast: Vec<Stmt>) -> Self {
-        Self { ast }
+        Self {
+            ast,
+            env: HashMap::new(),
+        }
     }
 
-    pub fn evaluate(&self) -> Result<(), RuntimeError> {
-        for statement in &self.ast {
-            match self.evaluate_stmt(statement) {
+    pub fn evaluate(&mut self) -> Result<(), RuntimeError> {
+        for statement in self.ast.clone() {
+            match self.evaluate_stmt(&statement) {
                 Ok(_) => continue,
-                Err(e) => return Err(RuntimeError { error: e })
+                Err(e) => return Err(RuntimeError { error: e }),
             }
         }
 
         Ok(())
     }
 
-    fn evaluate_stmt(&self, stmt: &Stmt) -> Result<(), Error> {
+    fn evaluate_stmt(&mut self, stmt: &Stmt) -> Result<(), Error> {
         match stmt {
             Stmt::Expression(expr) => {
                 self.evaluate_expr(expr)?;
                 Ok(())
             }
-            Stmt::Print(expr) => {
-                match self.evaluate_expr(expr) {
-                    Ok(result) => {
-                        self.print_evaluation(&result);
-                        Ok(())
-                    }
-                    Err(e) => Err(e),
+            Stmt::Print(expr) => match self.evaluate_expr(expr) {
+                Ok(result) => {
+                    self.print_evaluation(&result);
+                    Ok(())
                 }
-            }
+                Err(e) => Err(e),
+            },
+            Stmt::Var(name, initializer) => match initializer {
+                Some(expr) => {
+                    let eval = self.evaluate_expr(expr)?;
+                    self.env.insert(name.to_string(), eval);
+                    Ok(())
+                }
+                None => {
+                    self.env.insert(name.to_string(), Evaluation::Nil);
+                    Ok(())
+                }
+            },
         }
     }
 
@@ -73,7 +90,7 @@ impl Evaluator {
         println!("{}", evaluation);
     }
 
-    fn evaluate_expr(&self, expr: &Expr) -> Result<Evaluation, Error> {
+    fn evaluate_expr(&mut self, expr: &Expr) -> Result<Evaluation, Error> {
         match expr {
             Expr::Literal(literal) => match literal {
                 LiteralValue::Bool(b) => Ok(Evaluation::Bool(*b)),
@@ -98,11 +115,15 @@ impl Evaluator {
                 }
             }
             Expr::Binary(left, op, right) => self.evaluate_binary(left, op, right),
+            Expr::Identifier(name) => match self.env.get(name) {
+                Some(value) => Ok(value.clone()),
+                None => Err(anyhow!("Undefined variable '{}'.", name)),
+            },
         }
     }
 
     fn evaluate_binary(
-        &self,
+        &mut self,
         left: &Expr,
         op: &Operator,
         right: &Expr,

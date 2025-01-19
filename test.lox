@@ -1,1 +1,2 @@
-true != false
+var a = "foo";
+print a;

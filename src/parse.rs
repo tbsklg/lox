@@ -11,12 +11,14 @@ pub enum Expr {
     Grouping(Box<Expr>),
     Unary(Operator, Box<Expr>),
     Binary(Box<Expr>, Operator, Box<Expr>),
+    Identifier(String),
 }
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
     Print(Expr),
     Expression(Expr),
+    Var(String, Option<Expr>),
 }
 
 impl fmt::Display for Stmt {
@@ -24,6 +26,10 @@ impl fmt::Display for Stmt {
         match self {
             Stmt::Print(e) => write!(f, "{e}"),
             Stmt::Expression(e) => write!(f, "{e}"),
+            Stmt::Var(n, e) => match e {
+                Some(e) => write!(f, "{n} {e}"),
+                None => write!(f, "{n}"),
+            }
         }
     }
 }
@@ -35,6 +41,7 @@ impl fmt::Display for Expr {
             Expr::Grouping(v) => write!(f, "(group {})", v),
             Expr::Unary(o, v) => write!(f, "({o} {v})"),
             Expr::Binary(l, o, r) => write!(f, "({o} {l} {r})"),
+            Expr::Identifier(n) => write!(f, "{n}"),
         }
     }
 }
@@ -111,8 +118,8 @@ impl<'e> Parser<'e> {
     pub fn parse(&mut self) -> Result<Vec<Stmt>, Error> {
         let mut statements: Vec<Stmt> = Vec::new();
         while !self.is_at_end() {
-            match self.statement()? {
-                Some(stmt) => statements.push(stmt),
+            match self.declaration()? {
+                Some(s) => statements.push(s),
                 None => continue,
             }
         }
@@ -124,12 +131,53 @@ impl<'e> Parser<'e> {
         matches!(self.peek(), Ok(token) if token.kind == TokenType::EOF)
     }
 
+    fn declaration(&mut self) -> Result<Option<Stmt>, Error> {
+        match self.peek()?.kind {
+            TokenType::VAR => {
+                self.lexer.next();
+                self.var_declaration()
+            }
+            _ => self.statement(),
+        }
+    }
+
+    fn consume(&mut self, expected_token: TokenType, msg: String) -> Result<Token, Error> {
+        let next_token = self.lexer.next().unwrap()?;
+
+        if next_token.kind != expected_token {
+            return Err(anyhow!(msg));
+        }
+
+        Ok(next_token)
+    }
+
+    fn var_declaration(&mut self) -> Result<Option<Stmt>, Error> {
+        let identifier_token =
+            self.consume(TokenType::IDENTIFIER, "Expected variable name".to_string())?;
+
+        let initializer = match self.peek()?.kind {
+            TokenType::EQUAL=> {
+                self.lexer.next();
+                Some(self.expression()?)
+            }
+            _ => None
+        };
+
+        let _ = self.consume(
+            TokenType::SEMICOLON,
+            "Expected ';' after variable declaration.".to_string(),
+        );
+
+        Ok(Some(Stmt::Var(identifier_token.origin, initializer)))
+    }
+
     fn statement(&mut self) -> Result<Option<Stmt>, Error> {
-        if matches!(self.peek()?.kind, TokenType::PRINT) {
-            self.lexer.next();
-            self.print_statement()
-        } else {
-            self.expression_statement()
+        match self.peek()?.kind {
+            TokenType::PRINT => {
+                self.lexer.next();
+                self.print_statement()
+            }
+            _ => self.expression_statement(),
         }
     }
 
@@ -263,6 +311,10 @@ impl<'e> Parser<'e> {
                 }
 
                 return Err(anyhow!("[line {}] Expect ')' after expression", token.line));
+            }
+            TokenType::IDENTIFIER => {
+                let name = token.clone().origin.trim_matches('"').to_string();
+                Expr::Identifier(name)
             }
             _ => return Err(anyhow!("[primary] Unexpected token: {:?}", token.kind)),
         };
