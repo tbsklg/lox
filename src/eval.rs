@@ -119,6 +119,11 @@ impl Evaluator {
                 Some(value) => Ok(value.clone()),
                 None => Err(anyhow!("Undefined variable '{}'.", name)),
             },
+            Expr::Assign(name, value_expr) => {
+                let value = self.evaluate_expr(value_expr)?;
+                self.env.insert(name.clone(), value.clone());
+                Ok(value)
+            }
         }
     }
 

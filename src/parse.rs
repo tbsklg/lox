@@ -12,6 +12,7 @@ pub enum Expr {
     Unary(Operator, Box<Expr>),
     Binary(Box<Expr>, Operator, Box<Expr>),
     Identifier(String),
+    Assign(String, Box<Expr>),
 }
 
 #[derive(Debug, Clone)]
@@ -29,7 +30,7 @@ impl fmt::Display for Stmt {
             Stmt::Var(n, e) => match e {
                 Some(e) => write!(f, "{n} {e}"),
                 None => write!(f, "{n}"),
-            }
+            },
         }
     }
 }
@@ -42,6 +43,7 @@ impl fmt::Display for Expr {
             Expr::Unary(o, v) => write!(f, "({o} {v})"),
             Expr::Binary(l, o, r) => write!(f, "({o} {l} {r})"),
             Expr::Identifier(n) => write!(f, "{n}"),
+            Expr::Assign(n, v) => write!(f, "{n} {v}"),
         }
     }
 }
@@ -156,11 +158,11 @@ impl<'e> Parser<'e> {
             self.consume(TokenType::IDENTIFIER, "Expected variable name".to_string())?;
 
         let initializer = match self.peek()?.kind {
-            TokenType::EQUAL=> {
+            TokenType::EQUAL => {
                 self.lexer.next();
                 Some(self.expression()?)
             }
-            _ => None
+            _ => None,
         };
 
         let _ = self.consume(
@@ -206,7 +208,23 @@ impl<'e> Parser<'e> {
     }
 
     fn expression(&mut self) -> Result<Expr, Error> {
-        self.comparison()
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Result<Expr, Error> {
+        let expr = self.comparison()?;
+        match self.peek()?.kind {
+            TokenType::EQUAL => {
+                self.lexer.next();
+                let value = self.assignment()?;
+
+                match expr {
+                    Expr::Identifier(n) => Ok(Expr::Assign(n, Box::new(value))),
+                    _ => Err(anyhow!("Invalid assignment target.")),
+                }
+            }
+            _ => Ok(expr),
+        }
     }
 
     pub fn comparison(&mut self) -> Result<Expr, Error> {
