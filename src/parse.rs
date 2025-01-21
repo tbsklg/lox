@@ -20,6 +20,7 @@ pub enum Stmt {
     Print(Expr),
     Expression(Expr),
     Var(String, Option<Expr>),
+    Block(Vec<Stmt>),
 }
 
 impl fmt::Display for Stmt {
@@ -31,6 +32,7 @@ impl fmt::Display for Stmt {
                 Some(e) => write!(f, "{n} {e}"),
                 None => write!(f, "{n}"),
             },
+            Stmt::Block(stmts) => write!(f, "{:?}", stmts),
         }
     }
 }
@@ -179,8 +181,29 @@ impl<'e> Parser<'e> {
                 self.lexer.next();
                 self.print_statement()
             }
+            TokenType::LeftBrace => {
+                self.lexer.next();
+                self.block()
+            }
             _ => self.expression_statement(),
         }
+    }
+
+    fn block(&mut self) -> Result<Option<Stmt>, Error> {
+        let mut stmts = vec![];
+
+        while !matches!(self.peek()?.kind, TokenType::RightBrace) {
+            if let Some(stmt) = self.declaration()? {
+                stmts.push(stmt);
+            }
+        }
+
+        let _ = self.consume(
+            TokenType::RightParen,
+            "Expected '}' after block.".to_string(),
+        );
+
+        Ok(Some(Stmt::Block(stmts)))
     }
 
     fn print_statement(&mut self) -> Result<Option<Stmt>, Error> {
