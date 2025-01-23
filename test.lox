@@ -1,5 +1,1 @@
-if ("a" == "a") {
-  print "foo";
-} else {
-  print "bar";
-}
+if (true) if (false) print "world"; else print "baz";

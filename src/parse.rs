@@ -211,7 +211,7 @@ impl<'e> Parser<'e> {
         let then_stmt = self
             .statement()?
             .ok_or_else(|| anyhow!("Expected statement after condition"))?;
-        
+
         let else_stmt = if self.peek()?.kind == TokenType::ELSE {
             self.lexer.next();
             Some(Box::new(
