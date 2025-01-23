@@ -1,17 +1,5 @@
-// This program tests that when a variable is declared in an outer scope,
-// it can be used in an inner scope
-// But when a variable is declared in an inner scope,
-// it can't be used in an outer scope
-{
-  var foo = "outer foo";
-  var world = "outer world";
-  {
-    foo = "modified foo";
-    var world = "inner world";
-    print foo;
-    print world;
-  }
-  print foo;
-  print world;
+if ("a" == "a") {
+  print "foo";
+} else {
+  print "bar";
 }
-print world;

@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{cell::RefCell, collections::HashMap, mem};
+use std::{collections::HashMap, mem};
 
 use crate::parse::{Expr, LiteralValue, Operator, Stmt};
 use anyhow::{anyhow, Error};
@@ -40,7 +40,7 @@ struct Environment {
 }
 
 impl Environment {
-    fn new(&mut self) {
+    fn new_scope(&mut self) {
         let mut new = Environment {
             enclosing: Some(mem::take(self).into()),
             values: HashMap::new(),
@@ -49,7 +49,7 @@ impl Environment {
         mem::swap(self, &mut new);
     }
 
-    fn pop(&mut self) {
+    fn prev_scope(&mut self) {
         let mut old = mem::take(self.enclosing.as_mut().unwrap());
         mem::swap(self, &mut old);
     }
@@ -135,17 +135,32 @@ impl Evaluator {
                 self.evaluate_block(stmts)?;
                 Ok(())
             }
+            Stmt::If(condition, then_stmt, else_stmt) => {
+                if self.is_truthy(condition) {
+                    self.evaluate_stmt(then_stmt)
+                } else {
+                    else_stmt
+                        .as_ref()
+                        .map_or(Ok(()), |stmt| self.evaluate_stmt(stmt))
+                }
+            }
         }
     }
 
+    fn is_truthy(&mut self, expr: &Expr) -> bool {
+        self.evaluate_expr(expr)
+            .map(|eval| matches!(eval, Evaluation::Bool(true)))
+            .unwrap_or(false)
+    }
+
     fn evaluate_block(&mut self, stmts: &Vec<Stmt>) -> Result<(), Error> {
-        self.env.new();
+        self.env.new_scope();
 
         for stmt in stmts {
             self.evaluate_stmt(stmt)?;
         }
 
-        self.env.pop();
+        self.env.prev_scope();
 
         Ok(())
     }

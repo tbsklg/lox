@@ -21,6 +21,7 @@ pub enum Stmt {
     Expression(Expr),
     Var(String, Option<Expr>),
     Block(Vec<Stmt>),
+    If(Expr, Box<Stmt>, Option<Box<Stmt>>),
 }
 
 impl fmt::Display for Stmt {
@@ -33,6 +34,7 @@ impl fmt::Display for Stmt {
                 None => write!(f, "{n}"),
             },
             Stmt::Block(stmts) => write!(f, "{:?}", stmts),
+            Stmt::If(c, t, e) => write!(f, "{c} {t} {:?}", e),
         }
     }
 }
@@ -177,6 +179,10 @@ impl<'e> Parser<'e> {
 
     fn statement(&mut self) -> Result<Option<Stmt>, Error> {
         match self.peek()?.kind {
+            TokenType::IF => {
+                self.lexer.next();
+                self.if_statement()
+            }
             TokenType::PRINT => {
                 self.lexer.next();
                 self.print_statement()
@@ -187,6 +193,36 @@ impl<'e> Parser<'e> {
             }
             _ => self.expression_statement(),
         }
+    }
+
+    fn if_statement(&mut self) -> Result<Option<Stmt>, Error> {
+        let condition = if self.peek()?.kind == TokenType::LeftParen {
+            self.lexer.next();
+            let cond = self.expression()?;
+            self.consume(
+                TokenType::RightParen,
+                "Expected ')' after if condition.".to_string(),
+            )?;
+            cond
+        } else {
+            self.expression()?
+        };
+
+        let then_stmt = self
+            .statement()?
+            .ok_or_else(|| anyhow!("Expected statement after condition"))?;
+        
+        let else_stmt = if self.peek()?.kind == TokenType::ELSE {
+            self.lexer.next();
+            Some(Box::new(
+                self.statement()?
+                    .ok_or_else(|| anyhow!("Expected statement after else"))?,
+            ))
+        } else {
+            None
+        };
+
+        Ok(Some(Stmt::If(condition, Box::new(then_stmt), else_stmt)))
     }
 
     fn block(&mut self) -> Result<Option<Stmt>, Error> {
