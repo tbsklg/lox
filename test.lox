@@ -1,1 +1,6 @@
-if (true) if (false) print "world"; else print "baz";
+// And then prints the assigned values
+var a = "hello";
+var b = "hello";
+(a = false) or (b = true) or (a = "hello");
+print a;
+print b;

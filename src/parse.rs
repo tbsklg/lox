@@ -13,6 +13,7 @@ pub enum Expr {
     Binary(Box<Expr>, Operator, Box<Expr>),
     Identifier(String),
     Assign(String, Box<Expr>),
+    Logical(Box<Expr>, Operator, Box<Expr>),
 }
 
 #[derive(Debug, Clone)]
@@ -48,6 +49,7 @@ impl fmt::Display for Expr {
             Expr::Binary(l, o, r) => write!(f, "({o} {l} {r})"),
             Expr::Identifier(n) => write!(f, "{n}"),
             Expr::Assign(n, v) => write!(f, "{n} {v}"),
+            Expr::Logical(l, o, r) => write!(f, "{l} {o} {r}"),
         }
     }
 }
@@ -87,9 +89,11 @@ pub enum Operator {
     BangEqual,
     EqualEqual,
     Less,
+    Or,
     LessEqual,
     Greater,
     GreaterEqual,
+    And,
 }
 
 impl fmt::Display for Operator {
@@ -106,6 +110,8 @@ impl fmt::Display for Operator {
             Operator::LessEqual => write!(f, "<="),
             Operator::Greater => write!(f, ">"),
             Operator::GreaterEqual => write!(f, ">="),
+            Operator::Or => write!(f, "or"),
+            Operator::And => write!(f, "and"),
         }
     }
 }
@@ -271,7 +277,7 @@ impl<'e> Parser<'e> {
     }
 
     fn assignment(&mut self) -> Result<Expr, Error> {
-        let expr = self.comparison()?;
+        let expr = self.or()?;
         match self.peek()?.kind {
             TokenType::EQUAL => {
                 self.lexer.next();
@@ -284,6 +290,32 @@ impl<'e> Parser<'e> {
             }
             _ => Ok(expr),
         }
+    }
+
+    fn or(&mut self) -> Result<Expr, Error> {
+        let mut expr = self.and()?;
+
+        while matches!(self.peek()?.kind, TokenType::OR) {
+            let operator = Operator::Or;
+            self.lexer.next();
+            let right = self.and()?;
+            expr = Expr::Logical(Box::new(expr), operator, Box::new(right));
+        }
+
+        Ok(expr)
+    }
+
+    fn and(&mut self) -> Result<Expr, Error> {
+        let mut expr = self.comparison()?;
+
+        while matches!(self.peek()?.kind, TokenType::AND) {
+            let operator = Operator::And;
+            self.lexer.next();
+            let right = self.comparison()?;
+            expr = Expr::Logical(Box::new(expr), operator, Box::new(right));
+        }
+
+        Ok(expr)
     }
 
     pub fn comparison(&mut self) -> Result<Expr, Error> {
@@ -380,7 +412,7 @@ impl<'e> Parser<'e> {
             )),
             TokenType::LeftParen => {
                 self.lexer.next();
-                let expr = self.comparison()?;
+                let expr = self.assignment()?;
                 let token = self.peek()?;
                 if token.kind == TokenType::RightParen {
                     self.lexer.next();

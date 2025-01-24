@@ -149,7 +149,12 @@ impl Evaluator {
 
     fn is_truthy(&mut self, expr: &Expr) -> bool {
         self.evaluate_expr(expr)
-            .map(|eval| matches!(eval, Evaluation::Bool(true)))
+            .map(|eval| {
+                matches!(
+                    eval,
+                    Evaluation::Bool(true) | Evaluation::String(_) | Evaluation::Number(_)
+                )
+            })
             .unwrap_or(false)
     }
 
@@ -200,6 +205,37 @@ impl Evaluator {
                 let _ = self.env.assign(name, value.clone());
                 Ok(value)
             }
+            Expr::Logical(left, op, right) => self.evaluate_logical(left, op, right),
+        }
+    }
+
+    fn evaluate_logical(
+        &mut self,
+        left: &Expr,
+        op: &Operator,
+        right: &Expr,
+    ) -> Result<Evaluation, Error> {
+        match op {
+            Operator::Or => {
+                if self.is_truthy(left) {
+                    let left_val = self.evaluate_expr(left)?;
+                    Ok(left_val)
+                } else {
+                    self.evaluate_expr(right)
+                }
+            }
+            Operator::And => {
+                if !self.is_truthy(left) {
+                    let left_val = self.evaluate_expr(left)?;
+                    Ok(left_val)
+                } else {
+                    self.evaluate_expr(right)
+                }
+            }
+            _ => Err(anyhow!(
+                "Operator {} is not allowed for logical evaluation",
+                op
+            )),
         }
     }
 
