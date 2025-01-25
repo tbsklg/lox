@@ -23,6 +23,7 @@ pub enum Stmt {
     Var(String, Option<Expr>),
     Block(Vec<Stmt>),
     If(Expr, Box<Stmt>, Option<Box<Stmt>>),
+    While(Expr, Box<Stmt>),
 }
 
 impl fmt::Display for Stmt {
@@ -36,6 +37,7 @@ impl fmt::Display for Stmt {
             },
             Stmt::Block(stmts) => write!(f, "{:?}", stmts),
             Stmt::If(c, t, e) => write!(f, "{c} {t} {:?}", e),
+            Stmt::While(c, e) => write!(f, "{c} {e}"),
         }
     }
 }
@@ -189,6 +191,10 @@ impl<'e> Parser<'e> {
                 self.lexer.next();
                 self.if_statement()
             }
+            TokenType::WHILE => {
+                self.lexer.next();
+                self.while_statement()
+            }
             TokenType::PRINT => {
                 self.lexer.next();
                 self.print_statement()
@@ -199,6 +205,15 @@ impl<'e> Parser<'e> {
             }
             _ => self.expression_statement(),
         }
+    }
+
+    fn while_statement(&mut self) -> Result<Option<Stmt>, Error> {
+        let cond = self.expression()?;
+        let then = self
+            .statement()?
+            .ok_or_else(|| anyhow!("Expected statement after condition"))?;
+
+        Ok(Some(Stmt::While(cond, Box::new(then))))
     }
 
     fn if_statement(&mut self) -> Result<Option<Stmt>, Error> {

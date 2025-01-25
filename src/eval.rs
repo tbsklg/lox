@@ -144,6 +144,13 @@ impl Evaluator {
                         .map_or(Ok(()), |stmt| self.evaluate_stmt(stmt))
                 }
             }
+            Stmt::While(condition, then_stmt) => {
+                while self.is_truthy(condition) {
+                    let _ = self.evaluate_stmt(then_stmt);
+                }
+
+                Ok(())
+            }
         }
     }
 

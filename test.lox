@@ -1,6 +1,12 @@
-// And then prints the assigned values
-var a = "hello";
-var b = "hello";
-(a = false) or (b = true) or (a = "hello");
-print a;
-print b;
+var n = 10;
+var fm = 0;
+var fn = 1;
+var index = 0;
+
+while (index < n) {
+  print fm;
+  var temp = fm;
+  fm = fn;
+  fn = temp + fn;
+  index = index + 1;
+}
