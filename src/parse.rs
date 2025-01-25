@@ -195,6 +195,10 @@ impl<'e> Parser<'e> {
                 self.lexer.next();
                 self.while_statement()
             }
+            TokenType::FOR => {
+                self.lexer.next();
+                self.for_statement()
+            }
             TokenType::PRINT => {
                 self.lexer.next();
                 self.print_statement()
@@ -205,6 +209,64 @@ impl<'e> Parser<'e> {
             }
             _ => self.expression_statement(),
         }
+    }
+
+    fn for_statement(&mut self) -> Result<Option<Stmt>, Error> {
+        self.consume(TokenType::LeftParen, "Expected '(' after for.".to_string())?;
+
+        let initializer = match self.peek()?.kind {
+            TokenType::SEMICOLON => {
+                self.lexer.next();
+                None
+            }
+            TokenType::VAR => {
+                self.lexer.next();
+                Some(self.var_declaration()?)
+            },
+            _ => {
+                Some(self.expression_statement()?)
+            },
+        };
+
+        let condition = if self.peek()?.kind != TokenType::SEMICOLON {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+
+        
+        self.consume(
+            TokenType::SEMICOLON,
+            "Expected ';' after loop condition.".to_string(),
+        )?;
+
+        let increment = if self.peek()?.kind != TokenType::RightParen {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+
+        self.consume(
+            TokenType::RightParen,
+            "Expected ')' after for clause.".to_string(),
+        )?;
+
+        let mut body = self.statement()?;
+
+        if let Some(inc) = increment {
+            body = Some(Stmt::Block(vec![body.unwrap(), Stmt::Expression(inc)]));
+        }
+
+        let condition = condition.unwrap_or(Expr::Literal(LiteralValue::Bool(true)));
+        let body = Stmt::While(condition, Box::new(body.unwrap()));
+
+        let final_stmt = if let Some(init) = initializer {
+            Stmt::Block(vec![init.unwrap(), body])
+        } else {
+            body
+        };
+
+        Ok(Some(final_stmt))
     }
 
     fn while_statement(&mut self) -> Result<Option<Stmt>, Error> {

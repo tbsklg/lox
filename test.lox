@@ -1,12 +1,22 @@
-var n = 10;
-var fm = 0;
-var fn = 1;
-var index = 0;
+// This program uses for loops and block scopes<|SPACE|>// to print the updates to the same variable
+var baz = "after";
+{
+  var baz = "before";
 
-while (index < n) {
-  print fm;
-  var temp = fm;
-  fm = fn;
-  fn = temp + fn;
-  index = index + 1;
+  for (var baz = 0; baz < 1; baz = baz + 1) {
+    print baz;
+    var baz = -1;
+    print baz;
+  }
+}
+
+{
+  for (var baz = 0; baz > 0; baz = baz + 1) {}
+
+  var baz = "after";
+  print baz;
+
+  for (baz = 0; baz < 1; baz = baz + 1) {
+    print baz;
+  }
 }
