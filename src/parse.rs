@@ -14,6 +14,7 @@ pub enum Expr {
     Identifier(String),
     Assign(String, Box<Expr>),
     Logical(Box<Expr>, Operator, Box<Expr>),
+    Call(Box<Expr>, Token, Vec<Expr>),
 }
 
 #[derive(Debug, Clone)]
@@ -52,6 +53,7 @@ impl fmt::Display for Expr {
             Expr::Identifier(n) => write!(f, "{n}"),
             Expr::Assign(n, v) => write!(f, "{n} {v}"),
             Expr::Logical(l, o, r) => write!(f, "{l} {o} {r}"),
+            Expr::Call(c, p, a) => write!(f, "{c} {p} {:?}", a),
         }
     }
 }
@@ -222,10 +224,8 @@ impl<'e> Parser<'e> {
             TokenType::VAR => {
                 self.lexer.next();
                 Some(self.var_declaration()?)
-            },
-            _ => {
-                Some(self.expression_statement()?)
-            },
+            }
+            _ => Some(self.expression_statement()?),
         };
 
         let condition = if self.peek()?.kind != TokenType::SEMICOLON {
@@ -234,7 +234,6 @@ impl<'e> Parser<'e> {
             None
         };
 
-        
         self.consume(
             TokenType::SEMICOLON,
             "Expected ';' after loop condition.".to_string(),
@@ -469,12 +468,42 @@ impl<'e> Parser<'e> {
         let operator = match token.kind {
             TokenType::BANG => Operator::Bang,
             TokenType::MINUS => Operator::Minus,
-            _ => return self.primary(),
+            _ => return self.call(),
         };
         self.lexer.next();
 
         let right = self.unary()?;
         Ok(Expr::Unary(operator, Box::new(right)))
+    }
+
+    fn call(&mut self) -> Result<Expr, Error> {
+        let mut expr = self.primary()?;
+
+        while matches!(self.peek()?.kind, TokenType::LeftParen) {
+            self.lexer.next();
+            expr = self.finish_call(expr)?;
+        }
+
+        Ok(expr)
+    }
+
+    fn finish_call(&mut self, callee: Expr) -> Result<Expr, Error> {
+        let mut arguments = vec![];
+
+        if self.peek()?.kind != TokenType::RightParen {
+            arguments.push(self.expression()?);
+            while matches!(self.peek()?.kind, TokenType::COMMA) {
+                self.lexer.next();
+                arguments.push(self.expression()?);
+            }
+        }
+
+        let token = self.consume(
+            TokenType::RightParen,
+            "Expected ')' after arguments.".to_string(),
+        )?;
+
+        Ok(Expr::Call(Box::new(callee), token, arguments))
     }
 
     fn primary(&mut self) -> Result<Expr, Error> {

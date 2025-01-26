@@ -1,5 +1,10 @@
 use core::fmt;
-use std::{collections::HashMap, mem};
+use std::{
+    collections::HashMap,
+    mem,
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use crate::parse::{Expr, LiteralValue, Operator, Stmt};
 use anyhow::{anyhow, Error};
@@ -10,6 +15,7 @@ pub enum Evaluation {
     String(String),
     Number(f64),
     Nil,
+    Function(Callable),
 }
 
 impl fmt::Display for Evaluation {
@@ -25,7 +31,34 @@ impl fmt::Display for Evaluation {
                 }
             }
             Evaluation::Nil => write!(f, "nil"),
+            Evaluation::Function(_) => todo!(),
         }
+    }
+}
+
+pub struct Callable {
+    arity: usize,
+    function: Arc<dyn Fn(&Vec<Evaluation>) -> Evaluation + Send + Sync>,
+}
+
+impl Callable {
+    fn call(&self, arguments: &Vec<Evaluation>) -> Evaluation {
+        (self.function)(arguments)
+    }
+}
+
+impl Clone for Callable {
+    fn clone(&self) -> Self {
+        Self {
+            arity: self.arity,
+            function: Arc::clone(&self.function),
+        }
+    }
+}
+
+impl std::fmt::Debug for Callable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Callable(arity={})", self.arity)
     }
 }
 
@@ -90,10 +123,24 @@ pub struct Evaluator {
 
 impl Evaluator {
     pub fn new(ast: Vec<Stmt>) -> Self {
-        Self {
-            ast,
-            env: Default::default(),
-        }
+        let mut env: Environment = Default::default();
+
+        env.define(
+            "clock",
+            Evaluation::Function(Callable {
+                arity: 0,
+                function: Arc::new(|_args| {
+                    Evaluation::Number(
+                        SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs_f64(),
+                    )
+                }),
+            }),
+        );
+
+        Self { ast, env }
     }
 
     pub fn evaluate(&mut self) -> Result<(), RuntimeError> {
@@ -213,6 +260,30 @@ impl Evaluator {
                 Ok(value)
             }
             Expr::Logical(left, op, right) => self.evaluate_logical(left, op, right),
+            Expr::Call(callee, _, arguments) => self.evaluate_call(callee.as_ref(), arguments),
+        }
+    }
+
+    fn evaluate_call(&mut self, expr: &Expr, arguments: &[Expr]) -> Result<Evaluation, Error> {
+        let callee = self.evaluate_expr(expr)?;
+
+        let evaluations: Vec<Evaluation> = arguments
+            .iter()
+            .map(|arg| self.evaluate_expr(arg))
+            .collect::<Result<_, _>>()?;
+
+        match callee {
+            Evaluation::Function(callable) => {
+                if arguments.len() != callable.arity {
+                    return Err(anyhow!(
+                        "Expected {} arguments but got {}",
+                        callable.arity,
+                        arguments.len()
+                    ));
+                }
+                Ok(callable.call(&evaluations))
+            }
+            _ => Err(anyhow!("Can only call functions")),
         }
     }
 
