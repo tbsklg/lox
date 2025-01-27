@@ -25,6 +25,7 @@ pub enum Stmt {
     Block(Vec<Stmt>),
     If(Expr, Box<Stmt>, Option<Box<Stmt>>),
     While(Expr, Box<Stmt>),
+    Function(Token, Vec<Token>, Box<Stmt>),
 }
 
 impl fmt::Display for Stmt {
@@ -39,6 +40,7 @@ impl fmt::Display for Stmt {
             Stmt::Block(stmts) => write!(f, "{:?}", stmts),
             Stmt::If(c, t, e) => write!(f, "{c} {t} {:?}", e),
             Stmt::While(c, e) => write!(f, "{c} {e}"),
+            Stmt::Function(t, ps, b) => write!(f, "{t} {:?} {:?}", ps, b),
         }
     }
 }
@@ -149,6 +151,10 @@ impl<'e> Parser<'e> {
 
     fn declaration(&mut self) -> Result<Option<Stmt>, Error> {
         match self.peek()?.kind {
+            TokenType::FUN => {
+                self.lexer.next();
+                self.fun_declaration("function")
+            }
             TokenType::VAR => {
                 self.lexer.next();
                 self.var_declaration()
@@ -474,6 +480,42 @@ impl<'e> Parser<'e> {
 
         let right = self.unary()?;
         Ok(Expr::Unary(operator, Box::new(right)))
+    }
+
+    fn fun_declaration(&mut self, kind: &str) -> Result<Option<Stmt>, Error> {
+        let name = self.consume(TokenType::IDENTIFIER, format!("Expected {kind} name."))?;
+
+        let _ = self.consume(
+            TokenType::LeftParen,
+            format!("Expected ( after {kind} name."),
+        );
+
+        let mut params = vec![];
+
+        if self.peek()?.kind != TokenType::RightParen {
+            params
+                .push(self.consume(TokenType::IDENTIFIER, "Expected parameter name".to_string())?);
+            while matches!(self.peek()?.kind, TokenType::COMMA) {
+                self.lexer.next();
+                params.push(
+                    self.consume(TokenType::IDENTIFIER, "Expected parameter name".to_string())?,
+                )
+            }
+        }
+
+        let _ = self.consume(
+            TokenType::RightParen,
+            format!("Expected ) after {kind} name."),
+        );
+
+        let _ = self.consume(
+            TokenType::LeftBrace,
+            format!("Expected ) after {kind} name."),
+        );
+
+        let body = self.block()?.unwrap_or(Stmt::Block(vec![]));
+
+        Ok(Some(Stmt::Function(name, params, Box::new(body))))
     }
 
     fn call(&mut self) -> Result<Expr, Error> {

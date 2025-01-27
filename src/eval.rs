@@ -2,11 +2,13 @@ use core::fmt;
 use std::{
     collections::HashMap,
     mem,
-    sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::parse::{Expr, LiteralValue, Operator, Stmt};
+use crate::{
+    lex::Token,
+    parse::{Expr, LiteralValue, Operator, Stmt},
+};
 use anyhow::{anyhow, Error};
 
 #[derive(Clone, Debug)]
@@ -31,27 +33,64 @@ impl fmt::Display for Evaluation {
                 }
             }
             Evaluation::Nil => write!(f, "nil"),
-            Evaluation::Function(_) => todo!(),
+            Evaluation::Function(c) => write!(f, "<fn {}>", c.name),
         }
     }
 }
 
 pub struct Callable {
+    name: String,
     arity: usize,
-    function: Arc<dyn Fn(&Vec<Evaluation>) -> Evaluation + Send + Sync>,
+    params: Vec<Token>,
+    body: Vec<Stmt>,
 }
 
 impl Callable {
-    fn call(&self, arguments: &Vec<Evaluation>) -> Evaluation {
-        (self.function)(arguments)
+    fn call(&mut self, evaluator: &mut Evaluator, arguments: &Vec<Evaluation>) -> Evaluation {
+        if self.name == "clock" {
+            return Evaluation::Number(
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as f64,
+            );
+        }
+
+        evaluator.env.new_scope();
+
+        self.params
+            .iter()
+            .map(|p| p.origin.clone())
+            .zip(arguments)
+            .for_each(|curr| evaluator.env.define(&curr.0, curr.1.clone()));
+
+        let mut last_value = Evaluation::Nil;
+
+        for stmt in &self.body {
+            match stmt {
+                Stmt::Expression(expr) => {
+                    if let Ok(value) = evaluator.evaluate_expr(expr) {
+                        last_value = value;
+                    }
+                }
+                _ => {
+                    let _ = evaluator.evaluate_stmt(stmt);
+                }
+            }
+        }
+
+        evaluator.env.prev_scope();
+        last_value
     }
 }
 
 impl Clone for Callable {
     fn clone(&self) -> Self {
         Self {
+            name: self.name.clone(),
             arity: self.arity,
-            function: Arc::clone(&self.function),
+            params: self.params.clone(),
+            body: self.body.clone(),
         }
     }
 }
@@ -125,20 +164,14 @@ impl Evaluator {
     pub fn new(ast: Vec<Stmt>) -> Self {
         let mut env: Environment = Default::default();
 
-        env.define(
-            "clock",
-            Evaluation::Function(Callable {
-                arity: 0,
-                function: Arc::new(|_args| {
-                    Evaluation::Number(
-                        SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap()
-                            .as_secs_f64(),
-                    )
-                }),
-            }),
-        );
+        let clock_fn = Callable {
+            name: "clock".to_string(),
+            arity: 0,
+            params: vec![],
+            body: vec![],
+        };
+
+        env.define("clock", Evaluation::Function(clock_fn));
 
         Self { ast, env }
     }
@@ -198,6 +231,9 @@ impl Evaluator {
 
                 Ok(())
             }
+            Stmt::Function(name, params, body) => {
+                self.evaluate_function(&name.origin, params, body.as_ref())
+            }
         }
     }
 
@@ -210,6 +246,30 @@ impl Evaluator {
                 )
             })
             .unwrap_or(false)
+    }
+
+    fn evaluate_function(
+        &mut self,
+        name: &str,
+        params: &[Token],
+        body: &Stmt,
+    ) -> Result<(), Error> {
+        let body = match body {
+            Stmt::Block(stmts) => stmts.to_vec(),
+            _ => vec![],
+        };
+
+        self.env.define(
+            name,
+            Evaluation::Function(Callable {
+                name: name.to_string(),
+                arity: params.len(),
+                params: params.to_vec(),
+                body,
+            }),
+        );
+
+        Ok(())
     }
 
     fn evaluate_block(&mut self, stmts: &Vec<Stmt>) -> Result<(), Error> {
@@ -273,7 +333,7 @@ impl Evaluator {
             .collect::<Result<_, _>>()?;
 
         match callee {
-            Evaluation::Function(callable) => {
+            Evaluation::Function(mut callable) => {
                 if arguments.len() != callable.arity {
                     return Err(anyhow!(
                         "Expected {} arguments but got {}",
@@ -281,7 +341,7 @@ impl Evaluator {
                         arguments.len()
                     ));
                 }
-                Ok(callable.call(&evaluations))
+                Ok(callable.call(self, &evaluations))
             }
             _ => Err(anyhow!("Can only call functions")),
         }
