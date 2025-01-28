@@ -43,6 +43,7 @@ pub struct Callable {
     arity: usize,
     params: Vec<Token>,
     body: Vec<Stmt>,
+    closure: Environment,
 }
 
 impl Callable {
@@ -56,13 +57,20 @@ impl Callable {
             );
         }
 
-        evaluator.env.new_scope();
+        let mut new_env = Environment {
+            enclosing: Some(Box::new(self.closure.clone())),
+            values: HashMap::new(),
+        };
+
+        new_env.define(&self.name, Evaluation::Function(self.clone()));
 
         self.params
             .iter()
             .map(|p| p.origin.clone())
             .zip(arguments)
-            .for_each(|curr| evaluator.env.define(&curr.0, curr.1.clone()));
+            .for_each(|curr| new_env.define(&curr.0, curr.1.clone()));
+
+        let prev_env = mem::replace(&mut evaluator.env, new_env);
 
         let result = (|| {
             for stmt in &self.body {
@@ -75,7 +83,7 @@ impl Callable {
             Ok(Evaluation::Nil)
         })();
 
-        evaluator.env.prev_scope();
+        evaluator.env = prev_env;
 
         result.unwrap_or_else(|err| match err {
             RuntimeError::Return(value) => value,
@@ -93,6 +101,7 @@ impl Clone for Callable {
             arity: self.arity,
             params: self.params.clone(),
             body: self.body.clone(),
+            closure: self.closure.clone(),
         }
     }
 }
@@ -172,6 +181,7 @@ impl Evaluator {
             arity: 0,
             params: vec![],
             body: vec![],
+            closure: env.clone(),
         };
 
         env.define("clock", Evaluation::Function(clock_fn));
@@ -272,6 +282,7 @@ impl Evaluator {
                 arity: params.len(),
                 params: params.to_vec(),
                 body,
+                closure: self.env.clone(),
             }),
         );
 
