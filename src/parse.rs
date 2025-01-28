@@ -26,6 +26,7 @@ pub enum Stmt {
     If(Expr, Box<Stmt>, Option<Box<Stmt>>),
     While(Expr, Box<Stmt>),
     Function(Token, Vec<Token>, Box<Stmt>),
+    Return(Token, Option<Expr>),
 }
 
 impl fmt::Display for Stmt {
@@ -41,6 +42,7 @@ impl fmt::Display for Stmt {
             Stmt::If(c, t, e) => write!(f, "{c} {t} {:?}", e),
             Stmt::While(c, e) => write!(f, "{c} {e}"),
             Stmt::Function(t, ps, b) => write!(f, "{t} {:?} {:?}", ps, b),
+            Stmt::Return(t, e) => write!(f, "{t} {:?}", e),
         }
     }
 }
@@ -215,6 +217,7 @@ impl<'e> Parser<'e> {
                 self.lexer.next();
                 self.block()
             }
+            TokenType::RETURN => self.return_statement(),
             _ => self.expression_statement(),
         }
     }
@@ -274,6 +277,24 @@ impl<'e> Parser<'e> {
         Ok(Some(final_stmt))
     }
 
+    fn return_statement(&mut self) -> Result<Option<Stmt>, Error> {
+        let keyword = self.consume(TokenType::RETURN, "Expected return statement".to_string())?;
+
+        let value = match self.peek()?.kind {
+            TokenType::SEMICOLON => {
+                None
+            }
+            _ => Some(self.expression()?),
+        };
+        
+        self.consume(
+            TokenType::SEMICOLON,
+            "Expected ';' after return.".to_string(),
+        )?;
+
+        Ok(Some(Stmt::Return(keyword, value)))
+    }
+
     fn while_statement(&mut self) -> Result<Option<Stmt>, Error> {
         let cond = self.expression()?;
         let then = self
@@ -323,7 +344,7 @@ impl<'e> Parser<'e> {
         }
 
         let _ = self.consume(
-            TokenType::RightParen,
+            TokenType::RightBrace,
             "Expected '}' after block.".to_string(),
         );
 

@@ -56,7 +56,7 @@ fn main() {
                 Ok(ast) => match eval::Evaluator::new(ast).evaluate() {
                     Ok(_) => (),
                     Err(e) => {
-                        eprintln!("{}", e.error);
+                        eprintln!("{}", e);
                         exit_code = 70;
                     }
                 },
@@ -73,7 +73,7 @@ fn main() {
                 Ok(ast) => match eval::Evaluator::new(ast).evaluate() {
                     Ok(_) => (),
                     Err(e) => {
-                        eprintln!("{}", e.error);
+                        eprintln!("{}", e);
                         exit_code = 70;
                     }
                 },

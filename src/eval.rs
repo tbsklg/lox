@@ -64,23 +64,25 @@ impl Callable {
             .zip(arguments)
             .for_each(|curr| evaluator.env.define(&curr.0, curr.1.clone()));
 
-        let mut last_value = Evaluation::Nil;
-
-        for stmt in &self.body {
-            match stmt {
-                Stmt::Expression(expr) => {
-                    if let Ok(value) = evaluator.evaluate_expr(expr) {
-                        last_value = value;
-                    }
-                }
-                _ => {
-                    let _ = evaluator.evaluate_stmt(stmt);
+        let result = (|| {
+            for stmt in &self.body {
+                match evaluator.evaluate_stmt(stmt) {
+                    Ok(_) => continue,
+                    Err(RuntimeError::Return(value)) => return Ok(value),
+                    Err(e) => return Err(e),
                 }
             }
-        }
+            Ok(Evaluation::Nil)
+        })();
 
         evaluator.env.prev_scope();
-        last_value
+
+        result.unwrap_or_else(|err| match err {
+            RuntimeError::Return(value) => value,
+            RuntimeError::Error(e) => {
+                panic!("Unexpected error: {:?}", e);
+            }
+        })
     }
 }
 
@@ -101,8 +103,9 @@ impl std::fmt::Debug for Callable {
     }
 }
 
-pub struct RuntimeError {
-    pub error: Error,
+pub enum RuntimeError {
+    Error(anyhow::Error),
+    Return(Evaluation),
 }
 
 #[derive(Default, Debug, Clone)]
@@ -176,64 +179,67 @@ impl Evaluator {
         Self { ast, env }
     }
 
-    pub fn evaluate(&mut self) -> Result<(), RuntimeError> {
+    pub fn evaluate(&mut self) -> Result<(), Error> {
         for statement in self.ast.clone() {
             match self.evaluate_stmt(&statement) {
                 Ok(_) => continue,
-                Err(e) => return Err(RuntimeError { error: e }),
+                Err(RuntimeError::Error(e)) => return Err(e),
+                Err(RuntimeError::Return(_)) => {
+                    return Err(anyhow!("Unexpected return outside of a function."));
+                }
             }
         }
 
         Ok(())
     }
 
-    fn evaluate_stmt(&mut self, stmt: &Stmt) -> Result<(), Error> {
+    fn evaluate_stmt(&mut self, stmt: &Stmt) -> Result<Evaluation, RuntimeError> {
         match stmt {
-            Stmt::Expression(expr) => {
-                self.evaluate_expr(expr)?;
-                Ok(())
+            Stmt::Expression(expr) => self.evaluate_expr(expr),
+            Stmt::Print(expr) => {
+                let result = self.evaluate_expr(expr)?;
+                self.print_evaluation(&result);
+                Ok(Evaluation::Nil)
             }
-            Stmt::Print(expr) => match self.evaluate_expr(expr) {
-                Ok(result) => {
-                    self.print_evaluation(&result);
-                    Ok(())
-                }
-                Err(e) => Err(e),
-            },
-            Stmt::Var(name, initializer) => match initializer {
-                Some(expr) => {
-                    let eval = self.evaluate_expr(expr)?;
-                    self.env.define(name, eval);
-                    Ok(())
-                }
-                None => {
-                    self.env.define(name, Evaluation::Nil);
-                    Ok(())
-                }
-            },
+            Stmt::Var(name, initializer) => {
+                let value = match initializer {
+                    Some(expr) => self.evaluate_expr(expr)?,
+                    None => Evaluation::Nil,
+                };
+                self.env.define(name, value);
+                Ok(Evaluation::Nil)
+            }
             Stmt::Block(stmts) => {
                 self.evaluate_block(stmts)?;
-                Ok(())
+                Ok(Evaluation::Nil)
             }
             Stmt::If(condition, then_stmt, else_stmt) => {
                 if self.is_truthy(condition) {
                     self.evaluate_stmt(then_stmt)
                 } else {
-                    else_stmt
-                        .as_ref()
-                        .map_or(Ok(()), |stmt| self.evaluate_stmt(stmt))
+                    match else_stmt {
+                        Some(stmt) => self.evaluate_stmt(stmt),
+                        None => Ok(Evaluation::Nil),
+                    }
                 }
             }
             Stmt::While(condition, then_stmt) => {
                 while self.is_truthy(condition) {
-                    let _ = self.evaluate_stmt(then_stmt);
+                    self.evaluate_stmt(then_stmt)?;
                 }
-
-                Ok(())
+                Ok(Evaluation::Nil)
             }
             Stmt::Function(name, params, body) => {
-                self.evaluate_function(&name.origin, params, body.as_ref())
+                self.evaluate_function(&name.origin, params, body.as_ref())?;
+                Ok(Evaluation::Nil)
             }
+            Stmt::Return(_, value) => match value {
+                Some(expr) => {
+                    let result = self.evaluate_expr(expr)?;
+                    Err(RuntimeError::Return(result))
+                }
+                None => Err(RuntimeError::Return(Evaluation::Nil)),
+            },
         }
     }
 
@@ -253,7 +259,7 @@ impl Evaluator {
         name: &str,
         params: &[Token],
         body: &Stmt,
-    ) -> Result<(), Error> {
+    ) -> Result<(), RuntimeError> {
         let body = match body {
             Stmt::Block(stmts) => stmts.to_vec(),
             _ => vec![],
@@ -272,11 +278,21 @@ impl Evaluator {
         Ok(())
     }
 
-    fn evaluate_block(&mut self, stmts: &Vec<Stmt>) -> Result<(), Error> {
+    fn evaluate_block(&mut self, stmts: &Vec<Stmt>) -> Result<(), RuntimeError> {
         self.env.new_scope();
 
         for stmt in stmts {
-            self.evaluate_stmt(stmt)?;
+            match self.evaluate_stmt(stmt) {
+                Ok(_) => continue,
+                Err(RuntimeError::Return(value)) => {
+                    self.env.prev_scope();
+                    return Err(RuntimeError::Return(value));
+                }
+                Err(RuntimeError::Error(e)) => {
+                    self.env.prev_scope();
+                    return Err(RuntimeError::Error(e));
+                }
+            }
         }
 
         self.env.prev_scope();
@@ -288,7 +304,7 @@ impl Evaluator {
         println!("{}", evaluation);
     }
 
-    fn evaluate_expr(&mut self, expr: &Expr) -> Result<Evaluation, Error> {
+    fn evaluate_expr(&mut self, expr: &Expr) -> Result<Evaluation, RuntimeError> {
         match expr {
             Expr::Literal(literal) => match literal {
                 LiteralValue::Bool(b) => Ok(Evaluation::Bool(*b)),
@@ -302,18 +318,21 @@ impl Evaluator {
                 match op {
                     Operator::Minus => match right {
                         Evaluation::Number(n) => Ok(Evaluation::Number(-n)),
-                        _ => Err(anyhow!("Operand must be a number.")),
+                        _ => Err(RuntimeError::Error(anyhow!("Operand must be a number."))),
                     },
                     Operator::Bang => match right {
                         Evaluation::Bool(b) => Ok(Evaluation::Bool(!b)),
                         Evaluation::Nil => Ok(Evaluation::Bool(true)),
                         _ => Ok(Evaluation::Bool(false)),
                     },
-                    _ => Err(anyhow!("Unknown unary operator")),
+                    _ => Err(RuntimeError::Error(anyhow!("Unknown unary operator"))),
                 }
             }
             Expr::Binary(left, op, right) => self.evaluate_binary(left, op, right),
-            Expr::Identifier(name) => self.env.get(&name.to_string()),
+            Expr::Identifier(name) => match self.env.get(&name.to_string()) {
+                Ok(v) => Ok(v),
+                Err(_) => Err(RuntimeError::Error(anyhow!("Unknown identifier {name}."))),
+            },
             Expr::Assign(name, value_expr) => {
                 let value = self.evaluate_expr(value_expr)?;
                 let _ = self.env.assign(name, value.clone());
@@ -324,7 +343,11 @@ impl Evaluator {
         }
     }
 
-    fn evaluate_call(&mut self, expr: &Expr, arguments: &[Expr]) -> Result<Evaluation, Error> {
+    fn evaluate_call(
+        &mut self,
+        expr: &Expr,
+        arguments: &[Expr],
+    ) -> Result<Evaluation, RuntimeError> {
         let callee = self.evaluate_expr(expr)?;
 
         let evaluations: Vec<Evaluation> = arguments
@@ -335,15 +358,15 @@ impl Evaluator {
         match callee {
             Evaluation::Function(mut callable) => {
                 if arguments.len() != callable.arity {
-                    return Err(anyhow!(
+                    return Err(RuntimeError::Error(anyhow!(
                         "Expected {} arguments but got {}",
                         callable.arity,
                         arguments.len()
-                    ));
+                    )));
                 }
                 Ok(callable.call(self, &evaluations))
             }
-            _ => Err(anyhow!("Can only call functions")),
+            _ => Err(RuntimeError::Error(anyhow!("Can only call functions"))),
         }
     }
 
@@ -352,7 +375,7 @@ impl Evaluator {
         left: &Expr,
         op: &Operator,
         right: &Expr,
-    ) -> Result<Evaluation, Error> {
+    ) -> Result<Evaluation, RuntimeError> {
         match op {
             Operator::Or => {
                 if self.is_truthy(left) {
@@ -370,10 +393,10 @@ impl Evaluator {
                     self.evaluate_expr(right)
                 }
             }
-            _ => Err(anyhow!(
+            _ => Err(RuntimeError::Error(anyhow!(
                 "Operator {} is not allowed for logical evaluation",
                 op
-            )),
+            ))),
         }
     }
 
@@ -382,7 +405,7 @@ impl Evaluator {
         left: &Expr,
         op: &Operator,
         right: &Expr,
-    ) -> Result<Evaluation, Error> {
+    ) -> Result<Evaluation, RuntimeError> {
         let left_val = self.evaluate_expr(left)?;
         let right_val = self.evaluate_expr(right)?;
 
@@ -398,26 +421,34 @@ impl Evaluator {
                 Operator::LessEqual => Ok(Evaluation::Bool(l <= r)),
                 Operator::EqualEqual => Ok(Evaluation::Bool(l == r)),
                 Operator::BangEqual => Ok(Evaluation::Bool(l != r)),
-                _ => Err(anyhow!("Invalid binary operator for numbers")),
+                _ => Err(RuntimeError::Error(anyhow!(
+                    "Invalid binary operator for numbers"
+                ))),
             },
             (Evaluation::String(l), Evaluation::String(r)) => match op {
                 Operator::Plus => Ok(Evaluation::String(format!("{}{}", l, r))),
                 Operator::EqualEqual => Ok(Evaluation::Bool(l == r)),
                 Operator::BangEqual => Ok(Evaluation::Bool(l != r)),
-                _ => Err(anyhow!("Only `+`, `==`, and `!=` are valid for strings")),
+                _ => Err(RuntimeError::Error(anyhow!(
+                    "Only `+`, `==`, and `!=` are valid for strings"
+                ))),
             },
             (Evaluation::Number(_), Evaluation::String(_)) => match op {
                 Operator::EqualEqual => Ok(Evaluation::Bool(false)),
-                _ => Err(anyhow!("Only `+`, `==`, and `!=` are valid for strings")),
+                _ => Err(RuntimeError::Error(anyhow!(
+                    "Only `+`, `==`, and `!=` are valid for strings"
+                ))),
             },
             (Evaluation::Bool(l), Evaluation::Bool(r)) => match op {
                 Operator::EqualEqual => Ok(Evaluation::Bool(l == r)),
                 Operator::BangEqual => Ok(Evaluation::Bool(l != r)),
-                _ => Err(anyhow!("Unsupported operation for binary bools")),
+                _ => Err(RuntimeError::Error(anyhow!(
+                    "Unsupported operation for binary bools"
+                ))),
             },
-            _ => Err(anyhow!(
+            _ => Err(RuntimeError::Error(anyhow!(
                 "Operands must be of the same type for binary operations"
-            )),
+            ))),
         }
     }
 }
