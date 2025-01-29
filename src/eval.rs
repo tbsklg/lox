@@ -1,7 +1,9 @@
 use core::fmt;
 use std::{
+    cell::RefCell,
     collections::HashMap,
     mem,
+    rc::Rc,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -43,7 +45,7 @@ pub struct Callable {
     arity: usize,
     params: Vec<Token>,
     body: Vec<Stmt>,
-    closure: Environment,
+    closure: Rc<RefCell<Environment>>,
 }
 
 impl Callable {
@@ -57,19 +59,15 @@ impl Callable {
             );
         }
 
-        let mut new_env = Environment {
-            enclosing: Some(Box::new(self.closure.clone())),
-            values: HashMap::new(),
-        };
+        // Create a new environment that inherits from the function's closure
+        let new_env = Environment::new_scope(self.closure.clone());
 
-        new_env.define(&self.name, Evaluation::Function(self.clone()));
+        // Define function parameters in the new environment
+        for (param, arg) in self.params.iter().zip(arguments) {
+            new_env.borrow_mut().define(&param.origin, arg.clone());
+        }
 
-        self.params
-            .iter()
-            .map(|p| p.origin.clone())
-            .zip(arguments)
-            .for_each(|curr| new_env.define(&curr.0, curr.1.clone()));
-
+        // Swap the evaluator's environment and run the function body
         let prev_env = mem::replace(&mut evaluator.env, new_env);
 
         let result = (|| {
@@ -83,6 +81,7 @@ impl Callable {
             Ok(Evaluation::Nil)
         })();
 
+        // Restore the previous environment
         evaluator.env = prev_env;
 
         result.unwrap_or_else(|err| match err {
@@ -117,25 +116,25 @@ pub enum RuntimeError {
     Return(Evaluation),
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 struct Environment {
-    enclosing: Option<Box<Environment>>,
+    enclosing: Option<Rc<RefCell<Environment>>>,
     values: HashMap<String, Evaluation>,
 }
 
 impl Environment {
-    fn new_scope(&mut self) {
-        let mut new = Environment {
-            enclosing: Some(mem::take(self).into()),
+    fn new() -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Environment {
+            enclosing: None,
             values: HashMap::new(),
-        };
-
-        mem::swap(self, &mut new);
+        }))
     }
 
-    fn prev_scope(&mut self) {
-        let mut old = mem::take(self.enclosing.as_mut().unwrap());
-        mem::swap(self, &mut old);
+    fn new_scope(enclosing: Rc<RefCell<Environment>>) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Environment {
+            enclosing: Some(enclosing),
+            values: HashMap::new(),
+        }))
     }
 
     fn define(&mut self, key: &str, eval: Evaluation) {
@@ -147,10 +146,11 @@ impl Environment {
             return Ok(value.clone());
         }
 
-        match &self.enclosing {
-            Some(enclosing) => enclosing.get(key),
-            None => Err(anyhow!("Undefined variable '{key}'")),
+        if let Some(ref enclosing) = self.enclosing {
+            return enclosing.borrow().get(key);
         }
+
+        Err(anyhow!("Undefined variable '{key}'"))
     }
 
     fn assign(&mut self, key: &str, eval: Evaluation) -> Result<(), Error> {
@@ -159,8 +159,8 @@ impl Environment {
             return Ok(());
         }
 
-        if let Some(ref mut enclosing) = &mut self.enclosing {
-            return enclosing.assign(key, eval);
+        if let Some(ref enclosing) = self.enclosing {
+            return enclosing.borrow_mut().assign(key, eval);
         }
 
         Err(anyhow!("Undefined variable '{key}'"))
@@ -169,22 +169,23 @@ impl Environment {
 
 pub struct Evaluator {
     ast: Vec<Stmt>,
-    env: Environment,
+    env: Rc<RefCell<Environment>>,
 }
 
 impl Evaluator {
     pub fn new(ast: Vec<Stmt>) -> Self {
-        let mut env: Environment = Default::default();
+        let env = Environment::new();
 
         let clock_fn = Callable {
             name: "clock".to_string(),
             arity: 0,
             params: vec![],
             body: vec![],
-            closure: env.clone(),
+            closure: Rc::clone(&env),
         };
 
-        env.define("clock", Evaluation::Function(clock_fn));
+        env.borrow_mut()
+            .define("clock", Evaluation::Function(clock_fn));
 
         Self { ast, env }
     }
@@ -216,7 +217,7 @@ impl Evaluator {
                     Some(expr) => self.evaluate_expr(expr)?,
                     None => Evaluation::Nil,
                 };
-                self.env.define(name, value);
+                self.env.borrow_mut().define(name, value);
                 Ok(Evaluation::Nil)
             }
             Stmt::Block(stmts) => {
@@ -275,14 +276,14 @@ impl Evaluator {
             _ => vec![],
         };
 
-        self.env.define(
+        self.env.borrow_mut().define(
             name,
             Evaluation::Function(Callable {
                 name: name.to_string(),
                 arity: params.len(),
                 params: params.to_vec(),
                 body,
-                closure: self.env.clone(),
+                closure: Rc::clone(&self.env), // Capture the current environment
             }),
         );
 
@@ -290,24 +291,24 @@ impl Evaluator {
     }
 
     fn evaluate_block(&mut self, stmts: &Vec<Stmt>) -> Result<(), RuntimeError> {
-        self.env.new_scope();
+        let new_env = Environment::new_scope(Rc::clone(&self.env));
+        let prev_env = mem::replace(&mut self.env, new_env);
 
         for stmt in stmts {
             match self.evaluate_stmt(stmt) {
                 Ok(_) => continue,
                 Err(RuntimeError::Return(value)) => {
-                    self.env.prev_scope();
+                    self.env = prev_env;
                     return Err(RuntimeError::Return(value));
                 }
                 Err(RuntimeError::Error(e)) => {
-                    self.env.prev_scope();
+                    self.env = prev_env;
                     return Err(RuntimeError::Error(e));
                 }
             }
         }
 
-        self.env.prev_scope();
-
+        self.env = prev_env;
         Ok(())
     }
 
@@ -340,13 +341,13 @@ impl Evaluator {
                 }
             }
             Expr::Binary(left, op, right) => self.evaluate_binary(left, op, right),
-            Expr::Identifier(name) => match self.env.get(&name.to_string()) {
+            Expr::Identifier(name) => match self.env.borrow_mut().get(&name.to_string()) {
                 Ok(v) => Ok(v),
                 Err(_) => Err(RuntimeError::Error(anyhow!("Unknown identifier {name}."))),
             },
             Expr::Assign(name, value_expr) => {
                 let value = self.evaluate_expr(value_expr)?;
-                let _ = self.env.assign(name, value.clone());
+                let _ = self.env.borrow_mut().assign(name, value.clone());
                 Ok(value)
             }
             Expr::Logical(left, op, right) => self.evaluate_logical(left, op, right),
