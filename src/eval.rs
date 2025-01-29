@@ -279,7 +279,7 @@ impl Evaluator {
                 arity: params.len(),
                 params: params.to_vec(),
                 body,
-                closure: Rc::clone(&self.env), // Capture the current environment
+                closure: Rc::clone(&self.env),
             }),
         );
 
