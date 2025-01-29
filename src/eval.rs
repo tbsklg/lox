@@ -59,15 +59,12 @@ impl Callable {
             );
         }
 
-        // Create a new environment that inherits from the function's closure
         let new_env = Environment::new_scope(self.closure.clone());
 
-        // Define function parameters in the new environment
         for (param, arg) in self.params.iter().zip(arguments) {
             new_env.borrow_mut().define(&param.origin, arg.clone());
         }
 
-        // Swap the evaluator's environment and run the function body
         let prev_env = mem::replace(&mut evaluator.env, new_env);
 
         let result = (|| {
@@ -81,7 +78,6 @@ impl Callable {
             Ok(Evaluation::Nil)
         })();
 
-        // Restore the previous environment
         evaluator.env = prev_env;
 
         result.unwrap_or_else(|err| match err {
